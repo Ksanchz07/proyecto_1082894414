@@ -20,13 +20,13 @@
 | Fase | Nombre | Estado | Inicio | Fin | Duración Real |
 |---|---|---|---|---|---|
 | 0 | Prerrequisitos | ✅ COMPLETADO | 2026-04-06 07:19:25 | 2026-04-06 07:35:00 | 16 min |
-| 1 | Repositorio y Config Base | ⏳ PENDIENTE | — | — | — |
+| 1 | Repositorio y Config Base | 🔄 EN PROGRESO | 2026-04-06 07:40:00 | — | — |
 | 2 | Capa de Datos JSON | ⏳ PENDIENTE | — | — | — |
 | 3 | Aplicación Next.js | ⏳ PENDIENTE | — | — | — |
 | 4 | Despliegue GitHub + Vercel | ⏳ PENDIENTE | — | — | — |
 | 5 | CI/CD y Validación TypeScript | ⏳ PENDIENTE | — | — | — |
 
-**Estado global del proyecto:** ✅ FASE 0 COMPLETADA — LISTO PARA FASE 1
+**Estado global del proyecto:** 🔄 FASE 1 EN PROGRESO
 
 **Duración total acumulada:** —
 
@@ -114,10 +114,10 @@ Estado  : ⏳ pendiente de crear
 
 ### Registro de inicio
 ```
-Fecha y hora de inicio : [pendiente]
-Ejecutor               : [pendiente]
-Prerequisito verificado: Fase 0 — [pendiente verificar]
-Observaciones iniciales: [pendiente]
+Fecha y hora de inicio : 2026-04-06 07:40:00
+Ejecutor               : Ingeniero Fullstack Senior
+Prerequisito verificado: Fase 0 — ✅ COMPLETADO
+Observaciones iniciales: Entorno verificado: Node.js v24.14.1, npm 11.11.0, Git 2.53.0. Vercel CLI instalado. Repositorio GitHub remoto ya vinculado (https://github.com/Ksanchz07/proyecto_1082894414.git). Se procede a crear proyecto Next.js con TypeScript, ESLint, Tailwind CSS y App Router, configurar en modo estricto, instalar Prettier, y validar que todo funciona correctamente.
 ```
 
 ### Registro de ejecución
