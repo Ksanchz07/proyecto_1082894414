@@ -74,6 +74,12 @@ export default function HolaMundo({
           {title}
         </h1>
 
+        {/* Nombre y documento del usuario */}
+        <div className="space-y-2">
+          <p className="text-2xl font-bold text-white">Keiner Sanchez</p>
+          <p className="text-lg text-gray-300">Documento: 1082894414</p>
+        </div>
+
         {/* Subtítulo: tecnologías y branding */}
         <p className="text-xl font-medium text-indigo-400 tracking-widest uppercase">
           {subtitle}
