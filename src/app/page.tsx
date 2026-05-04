@@ -12,22 +12,9 @@
  * 4. El cliente solo recibe HTML renderizado + CSS/JS mínimo
  */
 
-import HolaMundo from "@/components/HolaMundo/HolaMundo";
-import { readJson } from "@/lib/db/reader";
-import type { HomeData } from "@/lib/db/types";
-import type { EffectType } from "@/components/HolaMundo/HolaMundo.types";
+import { redirect } from 'next/navigation';
 
-// Server Component: lee el JSON en el servidor sin llamada HTTP
 export default function HomePage() {
-  const { hero } = readJson<HomeData>("pages/home");
-
-  return (
-    <HolaMundo
-      title={hero.title}
-      subtitle={hero.subtitle}
-      description={hero.description}
-      effect={hero.effect as EffectType}
-    />
-  );
+  redirect('/login');
 }
 
