@@ -23,7 +23,7 @@
 | # | Nombre de Fase | Rol Asignado | Estado | Fecha de inicio | Fecha de cierre | Archivo de resumen |
 |---|---|---|---|---|---|---|
 | 1 | Bootstrap, Login y `dataService` base | Ingeniero Fullstack Senior — Arquitecto del sistema y seguridad | Completada | 04/05/2026 | 04/05/2026 | `doc/RESUMEN_FASE_1_BOOTSTRAP.md` |
-| 2 | Layout, Dashboard y bootstrap | Diseñador Frontend Obsesivo + Ingeniero de Sistemas | Pendiente | — | — | `doc/RESUMEN_FASE_2_LAYOUT.md` |
+| 2 | Layout, Dashboard y bootstrap | Diseñador Frontend Obsesivo + Ingeniero de Sistemas | Completada | 04/05/2026 | 04/05/2026 | `doc/RESUMEN_FASE_2_LAYOUT.md` |
 | 3 | Gestión de Cobradores | Ingeniero Fullstack — Perfiles de cobrador con datos bancarios | Pendiente | — | — | `doc/RESUMEN_FASE_3_COBRADORES.md` |
 | 4 | Generación de Cuentas de Cobro, Historial y PDF | Ingeniero Fullstack + Diseñador Frontend — Operación central del sistema | Pendiente | — | — | `doc/RESUMEN_FASE_4_GENERACION.md` |
 | 5 | Auditoría y Pulido Final | Diseñador Frontend Obsesivo + Ingeniero Fullstack — Cierre del proyecto | Pendiente | — | — | `doc/RESUMEN_FASE_5_PULIDO_FINAL.md` |
@@ -51,6 +51,8 @@
 | 04/05/2026 | 12:00 | Sistema | Proyecto inicializado | Archivo de estado creado. Proyecto listo para Fase 1. |
 | 04/05/2026 | 12:15 | Fase 1 | Inicio | Fase 1 en progreso: Bootstrap, Login y dataService base. |
 | 04/05/2026 | 12:55 | Fase 1 | Cierre | Fase 1 completada: login seed, dataService base, rutas de auth y bootstrap inicial. |
+| 04/05/2026 | 13:00 | Fase 2 | Inicio | Fase 2 en progreso: Layout, Dashboard y bootstrap. |
+| 04/05/2026 | 14:00 | Fase 2 | Cierre | Fase 2 completada: UI components, AppLayout con sidebar role-based, dashboards diferenciados, middleware de protección. |
 
 ---
 

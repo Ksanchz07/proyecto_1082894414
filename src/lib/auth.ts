@@ -73,3 +73,13 @@ export function getSessionToken(request: Request) {
   const cookies = parseCookies(cookieHeader);
   return cookies.get(JWT_COOKIE_NAME) ?? null;
 }
+
+export async function getUserFromRequest(request: Request): Promise<JwtPayload | null> {
+  const token = getSessionToken(request);
+  if (!token) return null;
+  try {
+    return await verifyJwt(token);
+  } catch {
+    return null;
+  }
+}
