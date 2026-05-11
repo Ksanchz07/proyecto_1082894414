@@ -76,6 +76,61 @@ export async function changePassword(userId: string, newPassword: string) {
   }
 }
 
+export function isSeedMode(): boolean {
+  return !isSupabaseConfigured();
+}
+
+export async function generateInvoice(
+  userId: string,
+  data: { companyNit: string; concept: string; amount: number }
+) {
+  const mode = await getSystemMode();
+  const user = await getUserById(userId);
+  if (!user) throw new Error('Usuario no encontrado');
+
+  const invoiceId = `inv-${Date.now()}`;
+  const invoice = {
+    id: invoiceId,
+    invoice_number: Date.now(),
+    cobrador_name: user.name,
+    cobrador_cc: user.identification_number || '',
+    cobrador_address: user.address || '',
+    cobrador_bank: user.bank_name || '',
+    cobrador_account: user.bank_account || '',
+    cobrador_account_type: user.account_type || '',
+    company_nit: data.companyNit,
+    concept: data.concept,
+    amount: data.amount,
+    generated_at: new Date().toISOString(),
+    user_id: userId,
+  };
+
+  if (mode === 'seed') {
+    return invoice;
+  }
+
+  const { error } = await supabase.from('invoices').insert(invoice);
+  if (error) throw error;
+  return invoice;
+}
+
+export async function getInvoiceById(invoiceId: string, userId: string) {
+  const mode = await getSystemMode();
+  if (mode === 'seed') {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
 export async function recordAudit(entry: Parameters<typeof recordAuditEntry>[0]) {
   const mode = await getSystemMode();
   if (mode === 'seed') {

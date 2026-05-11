@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         user_email: user.email,
         user_role: user.role,
         action: 'generate_invoice',
-        entity: 'invoices',
+        entity: 'invoice',
         summary: `Generó cuenta de cobro ${invoice.id}`,
       });
     } catch (e) {
