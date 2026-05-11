@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const invoice = await getInvoiceById(invoiceId, user.sub);
     if (!invoice) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
     return NextResponse.json({ invoice });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Error interno' }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Error interno' }, { status: 500 });
   }
 }

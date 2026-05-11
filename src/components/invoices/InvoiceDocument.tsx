@@ -2,7 +2,7 @@ import React from 'react';
 import { numberToWords, formatCOP } from '@/lib/numberToWords';
 import { formatNIT } from '@/lib/dateUtils';
 
-type Invoice = {
+export type Invoice = {
   id: string;
   invoice_number: number;
   cobrador_name: string;

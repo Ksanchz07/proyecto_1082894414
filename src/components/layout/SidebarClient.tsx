@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { UserRole } from '@/lib/types';
 import {
   Home,
-  FileText,
   User,
   Users,
   Shield,

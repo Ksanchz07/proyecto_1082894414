@@ -2,11 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import InvoiceDocument from '@/components/invoices/InvoiceDocument';
+import type { Invoice } from '@/components/invoices/InvoiceDocument';
 
 export default function InvoicePrintPage() {
   const params = useParams();
   const id = params?.id as string;
-  const [invoice, setInvoice] = useState<any>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     if (!id) return;

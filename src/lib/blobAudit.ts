@@ -28,7 +28,7 @@ export async function withFileLock<T>(_key: string, callback: () => Promise<T>) 
   return callback();
 }
 
-export async function recordAuditEntry(_entry: AuditEntry) {
+export async function recordAuditEntry(_entry: AuditEntry): Promise<void> {
   // En modo seed, el registro de auditoría es un no-op.
   return;
 }

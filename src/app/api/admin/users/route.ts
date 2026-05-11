@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   try {
     const updated = await toggleUserActive(id, active);
     return NextResponse.json({ user: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Error' }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
   }
 }

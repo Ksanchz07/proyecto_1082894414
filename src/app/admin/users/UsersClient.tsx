@@ -1,9 +1,17 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 
+interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+}
+
 export default function UsersClient() {
-  const [users, setUsers] = useState<any[] | null>(null);
-  const [me, setMe] = useState<any | null>(null);
+  const [users, setUsers] = useState<UserRecord[] | null>(null);
+  const [me, setMe] = useState<{ sub?: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -25,7 +33,7 @@ export default function UsersClient() {
     });
     const data = await res.json();
     if (res.ok) {
-      setUsers((u) => (u || []).map((it: any) => (it.id === id ? data.user : it)));
+      setUsers((u) => (u || []).map((it) => (it.id === id ? data.user : it)));
     } else {
       alert(data?.error || 'Error');
     }

@@ -1,10 +1,10 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import InvoiceDocument from '@/components/invoices/InvoiceDocument';
+import type { Invoice } from '@/components/invoices/InvoiceDocument';
 
 export default function InvoicesIndexPage() {
-  const [invoices, setInvoices] = useState<any[] | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export default function InvoicesIndexPage() {
   }, []);
 
   if (invoices === null) return <div className="p-6">Cargando...</div>;
-  if (invoices.length === 0) return <div className="p-6">Aún no has generado ninguna cuenta de cobro. Haz clic en 'Nueva Cuenta' para empezar.</div>;
+  if (invoices.length === 0) return <div className="p-6">Aún no has generado ninguna cuenta de cobro. Haz clic en &apos;Nueva Cuenta&apos; para empezar.</div>;
 
   return (
     <div className="p-6 space-y-4">

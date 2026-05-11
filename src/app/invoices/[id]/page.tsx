@@ -2,12 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import InvoiceDocument from '@/components/invoices/InvoiceDocument';
+import type { Invoice } from '@/components/invoices/InvoiceDocument';
 
 export default function InvoiceViewPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
-  const [invoice, setInvoice] = useState<any>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

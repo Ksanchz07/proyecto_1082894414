@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 
 export default function AdminAuditPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0,7));
-  const [audits, setAudits] = useState<any[]>([]);
+  const [audits, setAudits] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     fetch(`/api/admin/audit?month=${month}`)

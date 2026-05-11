@@ -20,7 +20,7 @@ export default function NewInvoicePage() {
       return true;
     }
     const issues = parse.error.issues;
-    const errors: any = {};
+    const errors: { companyNit?: string; concept?: string; amount?: string } = {};
     for (const it of issues) {
       if (it.path[0] === 'companyNit') errors.companyNit = 'El NIT debe contener solo números (9 o 10 dígitos).';
       if (it.path[0] === 'concept') {
@@ -62,7 +62,7 @@ export default function NewInvoicePage() {
 
       const invoiceId = result.invoice?.id;
       router.push(`/invoices/${invoiceId}`);
-    } catch (err) {
+    } catch (_err) {
       alert('Ocurrió un error. Por favor intenta de nuevo.');
       setLoading(false);
     }
