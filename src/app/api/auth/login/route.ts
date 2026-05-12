@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
 import { loginSchema } from '@/lib/schemas';
 import { createSessionCookie, signJwt } from '@/lib/auth';
 import { getUserByEmail, recordAudit, getSystemMode } from '@/lib/dataService';
@@ -20,6 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Credenciales incorrectas.' }, { status: 401 });
   }
 
+  const bcrypt = await import('bcryptjs').then(m => m.default || m);
   const validPassword = bcrypt.compareSync(password, user.password_hash);
   if (!validPassword) {
     return NextResponse.json({ error: 'Credenciales incorrectas.' }, { status: 401 });

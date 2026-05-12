@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { changePasswordSchema } from '@/lib/schemas';
 import { withAuth } from '@/lib/withAuth';
 import { getUserById, changePassword } from '@/lib/dataService';
-import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   const session = await withAuth(request);
@@ -22,6 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
   }
 
+  const bcrypt = await import('bcryptjs').then(m => m.default || m);
   const validPassword = bcrypt.compareSync(currentPassword, user.password_hash);
   if (!validPassword) {
     return NextResponse.json({ error: 'Contraseña actual incorrecta.' }, { status: 401 });

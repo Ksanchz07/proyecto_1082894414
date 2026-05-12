@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import { supabase, isSupabaseConfigured } from './supabase';
 import {
   readSeedData,
@@ -47,12 +46,19 @@ export async function getUserById(id: string): Promise<UserWithPassword | null> 
   return data as UserWithPassword;
 }
 
+async function getBcrypt() {
+  const bcrypt = await import('bcryptjs');
+  return bcrypt.default || bcrypt;
+}
+
 export async function verifyPassword(user: UserWithPassword, password: string) {
+  const bcrypt = await getBcrypt();
   return bcrypt.compareSync(password, user.password_hash);
 }
 
 export async function changePassword(userId: string, newPassword: string) {
   const mode = await getSystemMode();
+  const bcrypt = await getBcrypt();
   const passwordHash = bcrypt.hashSync(newPassword, 10);
   if (mode === 'seed') {
     const seed = readSeedData();
