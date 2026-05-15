@@ -1,13 +1,5 @@
-const config = {
+export default {
   plugins: {
-    "@tailwindcss/nesting": {},
-    "@tailwindcss/postcss": {
-      // Optimizar para Vercel: no procesar archivos node_modules
-      corePlugins: {
-        preflight: true,
-      },
-    },
+    '@tailwindcss/postcss': {},
   },
 };
-
-export default config;
