@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  serverExternalPackages: ['bcryptjs', 'postgres'],
+  // Prevenir ciclos de CSS remoto en Vercel
+  serverExternalPackages: ['bcryptjs', 'postgres', 'tailwindcss', '@tailwindcss/postcss'],
 };
 
 export default nextConfig;

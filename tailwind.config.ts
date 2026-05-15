@@ -1,7 +1,12 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./src/**/*.{ts,tsx}"],
+  // Evitar ciclos: especificar rutas de contenido de forma restrictiva
+  content: [
+    "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
+    "./src/ui/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       animation: {
