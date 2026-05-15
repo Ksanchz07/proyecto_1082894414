@@ -19,5 +19,3 @@ export interface User {
 export interface UserWithPassword extends User {
   password_hash: string;
 }
-
-export type SystemMode = 'seed' | 'live';

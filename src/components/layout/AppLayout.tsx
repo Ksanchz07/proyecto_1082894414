@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getUserFromRequest } from '@/lib/auth';
-import { SeedModeBanner } from './SeedModeBanner';
 import { SidebarClient } from './SidebarClient';
-import { isSeedMode } from '@/lib/dataService';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -20,13 +18,10 @@ export async function AppLayout({ children }: AppLayoutProps) {
     redirect('/login');
   }
 
-  const seedMode = isSeedMode();
-
   return (
     <div className="flex h-screen bg-gray-50">
       <SidebarClient role={user.role} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {seedMode && <SeedModeBanner />}
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>

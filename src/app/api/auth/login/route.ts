@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { loginSchema } from '@/lib/schemas';
 import { createSessionCookie, signJwt } from '@/lib/auth';
-import { getUserByEmail, recordAudit, getSystemMode } from '@/lib/dataService';
+import { getUserByEmail, recordAudit } from '@/lib/dataService';
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -49,7 +49,5 @@ export async function POST(request: Request) {
     summary: `Inicio de sesión para ${user.email}`,
   });
 
-  const mode = await getSystemMode();
-  response.headers.append('X-System-Mode', mode);
   return response;
 }

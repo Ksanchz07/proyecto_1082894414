@@ -1,23 +1,8 @@
-import { supabase, isSupabaseConfigured } from './supabase';
-import {
-  readSeedData,
-  getSeedUserByEmail,
-  getSeedUserById,
-  writeSeedData,
-} from './seedReader';
+import { supabase } from './supabase';
 import { recordAuditEntry } from './blobAudit';
-import type { SystemMode, UserWithPassword } from './types';
-
-export async function getSystemMode(): Promise<SystemMode> {
-  return isSupabaseConfigured() ? 'live' : 'seed';
-}
+import type { UserWithPassword } from './types';
 
 export async function getUserByEmail(email: string): Promise<UserWithPassword | null> {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    return getSeedUserByEmail(email);
-  }
-
   const { data, error } = await supabase
     .from('users')
     .select('*')
@@ -33,11 +18,6 @@ export async function getUserByEmail(email: string): Promise<UserWithPassword | 
 }
 
 export async function getUserById(id: string): Promise<UserWithPassword | null> {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    return getSeedUserById(id);
-  }
-
   const { data, error } = await supabase.from('users').select('*').eq('id', id).limit(1).single();
   if (error || !data) {
     return null;
@@ -57,20 +37,8 @@ export async function verifyPassword(user: UserWithPassword, password: string) {
 }
 
 export async function changePassword(userId: string, newPassword: string) {
-  const mode = await getSystemMode();
   const bcrypt = await getBcrypt();
   const passwordHash = bcrypt.hashSync(newPassword, 10);
-  if (mode === 'seed') {
-    const seed = readSeedData();
-    const userIndex = seed.users.findIndex((item) => item.id === userId);
-    if (userIndex < 0) {
-      throw new Error('Usuario no encontrado');
-    }
-    seed.users[userIndex].password_hash = passwordHash;
-    seed.users[userIndex].must_change_password = false;
-    writeSeedData(seed);
-    return;
-  }
 
   const { error } = await supabase
     .from('users')
@@ -82,15 +50,10 @@ export async function changePassword(userId: string, newPassword: string) {
   }
 }
 
-export function isSeedMode(): boolean {
-  return !isSupabaseConfigured();
-}
-
 export async function generateInvoice(
   userId: string,
   data: { companyNit: string; concept: string; amount: number }
 ) {
-  const mode = await getSystemMode();
   const user = await getUserById(userId);
   if (!user) throw new Error('Usuario no encontrado');
 
@@ -111,21 +74,12 @@ export async function generateInvoice(
     user_id: userId,
   };
 
-  if (mode === 'seed') {
-    return invoice;
-  }
-
   const { error } = await supabase.from('invoices').insert(invoice);
   if (error) throw error;
   return invoice;
 }
 
 export async function getInvoiceById(invoiceId: string, userId: string) {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    return null;
-  }
-
   const { data, error } = await supabase
     .from('invoices')
     .select('*')
@@ -138,10 +92,5 @@ export async function getInvoiceById(invoiceId: string, userId: string) {
 }
 
 export async function recordAudit(entry: Parameters<typeof recordAuditEntry>[0]) {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    // Seed mode no-op.
-    return;
-  }
   return recordAuditEntry(entry);
 }
