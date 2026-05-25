@@ -1,17 +1,11 @@
 'use client';
+
 import React, { useEffect, useState } from 'react';
 
-interface UserRecord {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-}
-
-export default function UsersClient() {
-  const [users, setUsers] = useState<UserRecord[] | null>(null);
-  const [me, setMe] = useState<{ sub?: string } | null>(null);
+export function UsersClient() {
+  const [users, setUsers] = useState<any[] | null>(null);
+  const [me, setMe] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -26,6 +20,7 @@ export default function UsersClient() {
   }, []);
 
   async function toggle(id: string, active: boolean) {
+    setError(null);
     const res = await fetch('/api/admin/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -33,50 +28,72 @@ export default function UsersClient() {
     });
     const data = await res.json();
     if (res.ok) {
-      setUsers((u) => (u || []).map((it) => (it.id === id ? data.user : it)));
+      setUsers((current) => (current || []).map((it: any) => (it.id === id ? data.user : it)));
     } else {
-      alert(data?.error || 'Error');
+      setError(data?.error || 'Error al actualizar el usuario');
     }
   }
 
-  if (users === null) return <div className="p-6">Cargando usuarios...</div>;
+  if (users === null) {
+    return <div className="p-6">Cargando usuarios...</div>;
+  }
 
-  if (users.length === 0) return (
-    <div className="p-6">No hay usuarios registrados. Agrega el primero para comenzar a usar el sistema.</div>
-  );
+  if (users.length === 0) {
+    return <div className="p-6">No hay usuarios registrados. Agrega el primero para comenzar a usar el sistema.</div>;
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Administración de Usuarios</h1>
-      <table className="w-full table-auto border-collapse">
-        <thead>
-          <tr className="text-left border-b">
-            <th className="py-2">Nombre</th>
-            <th className="py-2">Email</th>
-            <th className="py-2">Rol</th>
-            <th className="py-2">Estado</th>
-            <th className="py-2">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id} className="border-b">
-              <td className="py-2">{u.name}</td>
-              <td className="py-2">{u.email}</td>
-              <td className="py-2 capitalize">{u.role}</td>
-              <td className="py-2">{u.is_active ? 'Activo' : 'Suspendido'}</td>
-              <td className="py-2">
-                {u.is_active ? (
-                  <button onClick={() => toggle(u.id, false)} disabled={me?.sub === u.id} className="px-2 py-1 bg-red-600 text-white rounded">Suspender</button>
-                ) : (
-                  <button onClick={() => toggle(u.id, true)} className="px-2 py-1 bg-green-600 text-white rounded">Activar</button>
-                )}
-                {me?.sub === u.id && <div className="text-xs text-gray-500 mt-1">No puedes suspenderte a ti mismo</div>}
-              </td>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Administración de Usuarios</h1>
+          <p className="text-sm text-gray-600">Activa o suspende usuarios del sistema.</p>
+        </div>
+        {error && <div className="text-sm text-rose-700">{error}</div>}
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <table className="w-full min-w-[640px] border-collapse text-left">
+          <thead className="bg-gray-50 text-sm text-gray-600">
+            <tr>
+              <th className="px-4 py-3">Nombre</th>
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-t border-gray-100">
+                <td className="px-4 py-3">{u.name}</td>
+                <td className="px-4 py-3">{u.email}</td>
+                <td className="px-4 py-3 capitalize">{u.role}</td>
+                <td className="px-4 py-3">{u.is_active ? 'Activo' : 'Suspendido'}</td>
+                <td className="px-4 py-3 space-x-2">
+                  {u.is_active ? (
+                    <button
+                      onClick={() => toggle(u.id, false)}
+                      disabled={me?.sub === u.id}
+                      className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Suspender
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toggle(u.id, true)}
+                      className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
+                    >
+                      Activar
+                    </button>
+                  )}
+                  {me?.sub === u.id && <div className="text-xs text-gray-500">No puedes suspenderte a ti mismo</div>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

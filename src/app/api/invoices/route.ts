@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { generateInvoiceSchema } from '@/lib/schemas';
 import { getUserFromRequest } from '@/lib/auth';
-import { generateInvoice, recordAudit } from '@/lib/dataService';
+import { generateInvoice, getInvoices, recordAudit } from '@/lib/dataService';
+
+export async function GET() {
+  try {
+    const invoices = await getInvoices();
+    return NextResponse.json({ invoices });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Error interno' }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
@@ -18,7 +27,6 @@ export async function POST(request: Request) {
   try {
     const invoice = await generateInvoice(user.sub, parsed.data);
 
-    // Registrar auditoría básica
     try {
       await recordAudit({
         id: `audit-${Date.now()}`,
@@ -31,7 +39,6 @@ export async function POST(request: Request) {
         summary: `Generó cuenta de cobro ${invoice.id}`,
       });
     } catch (e) {
-      // no bloquear si falla la auditoría
       console.warn('audit failed', e);
     }
 

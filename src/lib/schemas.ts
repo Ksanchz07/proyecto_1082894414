@@ -11,7 +11,7 @@ export const changePasswordSchema = z.object({
 });
 
 export const generateInvoiceSchema = z.object({
-  companyNit: z.string().regex(/^\d{9,10}$/, 'El NIT debe contener 9 o 10 dígitos'),
+  companyNit: z.string().regex(/^\d{9,10}$/, 'El NIT debe tener 9 o 10 dígitos'),
   concept: z.string().min(10).max(500),
   amount: z.number().positive(),
 });

@@ -1,10 +1,85 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Client } from 'pg';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key';
+const SUPABASE_URL_KEYS = [
+  'SUPABASE_CUENTAFACIL_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'SUPABASE_URL',
+];
+const SERVICE_ROLE_KEYS = [
+  'SUPABASE_CUENTAFACIL_SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+];
+const POSTGRES_URL_KEYS = [
+  'SUPABASE_CUENTAFACIL_POSTGRES_URL',
+  'DATABASE_URL',
+  'POSTGRES_URL',
+];
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+let _client: SupabaseClient | null = null;
+let _checked = false;
+
+function getFirstEnv(keys: string[]): string | null {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) return value;
+  }
+  return null;
+}
+
+function getSupabaseConfig() {
+  const url = getFirstEnv(SUPABASE_URL_KEYS);
+  const key = getFirstEnv(SERVICE_ROLE_KEYS);
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+export function getSupabaseClient(): SupabaseClient | null {
+  if (_client) return _client;
+  if (_checked) return null;
+
+  _checked = true;
+  const config = getSupabaseConfig();
+  if (!config) {
+    console.warn('[supabase] No configurado — retornando null (build-safe)');
+    return null;
+  }
+
+  _client = createClient(config.url, config.key, {
+    auth: { persistSession: false },
+  });
+
+  return _client;
+}
+
+export function requireSupabaseClient(): SupabaseClient {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('[supabase] No configurado');
+  }
+  return client;
+}
 
 export function isSupabaseConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(getSupabaseConfig());
+}
+
+export async function executeSql(query: string): Promise<any> {
+  const connectionString = getFirstEnv(POSTGRES_URL_KEYS);
+  if (!connectionString) {
+    throw new Error('POSTGRES_URL no configurado');
+  }
+
+  const client = new Client({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  });
+
+  await client.connect();
+  try {
+    const result = await client.query(query);
+    return result.rows;
+  } finally {
+    await client.end();
+  }
 }

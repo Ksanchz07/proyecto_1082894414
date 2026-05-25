@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 import { readSeedData, writeSeedData } from './seedReader';
 import type { User } from './types';
 
@@ -21,6 +21,11 @@ export async function listUsers(): Promise<User[]> {
       account_type: u.account_type,
       created_at: u.created_at,
     }));
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error('Supabase no configurado');
   }
 
   const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
@@ -51,6 +56,11 @@ export async function toggleUserActive(userId: string, active: boolean): Promise
       account_type: u.account_type,
       created_at: u.created_at,
     };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error('Supabase no configurado');
   }
 
   const { data, error } = await supabase
