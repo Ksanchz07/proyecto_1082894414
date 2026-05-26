@@ -3,11 +3,24 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const JWT_COOKIE_NAME = 'cuentafacil_session';
-const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret');
+
+let _cachedSecret: Uint8Array | null = null;
+function getSecret(): Uint8Array {
+  if (_cachedSecret) return _cachedSecret;
+  const s = process.env.JWT_SECRET;
+  if (!s || s === 'dev-secret') {
+    // En middleware no podemos throw — devolvemos un secret dev-only.
+    // Las rutas protegidas verán todos los tokens como inválidos y redirigirán a /login.
+    _cachedSecret = new TextEncoder().encode('dev-only-not-for-prod-cuentafacil-fallback');
+  } else {
+    _cachedSecret = new TextEncoder().encode(s);
+  }
+  return _cachedSecret;
+}
 
 async function readSession(token: string): Promise<{ sub: string; role: 'admin' | 'cobrador' } | null> {
   try {
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload as { sub: string; role: 'admin' | 'cobrador' };
   } catch {
     return null;

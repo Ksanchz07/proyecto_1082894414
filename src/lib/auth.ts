@@ -3,27 +3,40 @@ import type { UserRole } from './types';
 
 const JWT_COOKIE_NAME = 'cuentafacil_session';
 
+let _cachedSecret: Uint8Array | null = null;
+
 function getJwtSecret(): Uint8Array {
+  if (_cachedSecret) return _cachedSecret;
+
   const secret = process.env.JWT_SECRET;
+
+  // Sin JWT_SECRET o con el placeholder por defecto
   if (!secret || secret === 'dev-secret') {
     if (process.env.NODE_ENV === 'production') {
+      // Importante: el throw es lazy (solo al firmar/verificar), no al cargar el módulo.
+      // Esto permite que el build de Next.js no falle por falta de env vars;
+      // pero cualquier intento de auth en runtime fallará con error explícito.
       throw new Error(
-        '[auth] JWT_SECRET no configurado en producción. Configura una clave aleatoria fuerte en las env vars.'
+        '[auth] JWT_SECRET no configurado en producción. Configura una clave aleatoria fuerte (≥32 chars) en Vercel → Settings → Environment Variables.'
       );
     }
-    // Solo en dev local toleramos un default — pero advertimos en consola.
-    console.warn('[auth] ⚠️  JWT_SECRET usando default de desarrollo. NO USAR EN PRODUCCIÓN.');
-    return new TextEncoder().encode('dev-only-not-for-prod-cuentafacil-fallback');
+    // En dev local toleramos un default y avisamos
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[auth] ⚠️  JWT_SECRET usando default de desarrollo. NO USAR EN PRODUCCIÓN.');
+    }
+    _cachedSecret = new TextEncoder().encode('dev-only-not-for-prod-cuentafacil-fallback');
+    return _cachedSecret;
   }
-  if (secret.length < 32) {
+
+  if (secret.length < 32 && process.env.NODE_ENV !== 'test') {
     console.warn(
       '[auth] ⚠️  JWT_SECRET con menos de 32 caracteres — se recomienda mínimo 32 para HS256.'
     );
   }
-  return new TextEncoder().encode(secret);
-}
 
-const secretKey = getJwtSecret();
+  _cachedSecret = new TextEncoder().encode(secret);
+  return _cachedSecret;
+}
 
 export interface JwtPayload {
   sub: string;
@@ -38,11 +51,11 @@ export async function signJwt(payload: Omit<JwtPayload, 'iat' | 'exp'>) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(secretKey);
+    .sign(getJwtSecret());
 }
 
 export async function verifyJwt(token: string): Promise<JwtPayload> {
-  const { payload } = await jwtVerify(token, secretKey);
+  const { payload } = await jwtVerify(token, getJwtSecret());
   return payload as unknown as JwtPayload;
 }
 
