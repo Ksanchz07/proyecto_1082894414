@@ -1,3 +1,5 @@
+import { getSupabaseClient } from './supabase';
+
 export type AuditEntry = {
   id: string;
   timestamp: string;
@@ -21,14 +23,75 @@ export type AuditEntry = {
 };
 
 export async function getBlobToken() {
-  throw new Error('Blob audit is not configured in seed mode');
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    throw new Error('BLOB_READ_WRITE_TOKEN no está configurado');
+  }
+  return token;
 }
 
 export async function withFileLock<T>(_key: string, callback: () => Promise<T>) {
   return callback();
 }
 
-export async function recordAuditEntry(_entry: AuditEntry): Promise<void> {
-  // En modo seed, el registro de auditoría es un no-op.
-  return;
+export async function recordAuditEntry(entry: AuditEntry): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return; // seed mode: no-op
+
+  try {
+    await supabase.from('audit_log').insert({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      user_id: entry.user_id,
+      user_email: entry.user_email,
+      user_role: entry.user_role,
+      action: entry.action,
+      entity: entry.entity,
+      entity_id: entry.entity_id ?? null,
+      summary: entry.summary,
+      metadata: entry.metadata ?? null,
+    });
+  } catch (err) {
+    // Auditar nunca debe romper la operación principal.
+    console.warn('[audit] no se pudo persistir entry', err);
+  }
 }
+
+export interface AuditFilter {
+  month?: string; // 'YYYY-MM'
+  userId?: string;
+  action?: AuditEntry['action'];
+  limit?: number;
+}
+
+export async function readAuditEntries(filter: AuditFilter = {}): Promise<AuditEntry[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from('audit_log')
+    .select('*')
+    .order('timestamp', { ascending: false })
+    .limit(filter.limit ?? 200);
+
+  if (filter.month) {
+    const [year, month] = filter.month.split('-').map(Number);
+    if (year && month) {
+      const start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+      const end = new Date(Date.UTC(year, month, 1)).toISOString();
+      query = query.gte('timestamp', start).lt('timestamp', end);
+    }
+  }
+  if (filter.userId) query = query.eq('user_id', filter.userId);
+  if (filter.action) query = query.eq('action', filter.action);
+
+  const { data, error } = await query;
+  if (error) {
+    console.warn('[audit] read error', error);
+    return [];
+  }
+  return (data || []) as AuditEntry[];
+}
+
+// Backwards compat
+export const readAuditMonth = (month: string) => readAuditEntries({ month });

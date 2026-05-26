@@ -8,7 +8,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
   const { id } = await context.params;
   try {
-    const invoice = await getInvoiceById(id, user.sub);
+    const invoice = await getInvoiceById(id, user.sub, user.role);
     if (!invoice) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
     return NextResponse.json({ invoice });
   } catch (err: unknown) {

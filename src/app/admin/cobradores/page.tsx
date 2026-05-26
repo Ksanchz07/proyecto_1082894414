@@ -1,30 +1,27 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Users } from 'lucide-react';
+import { listCobradores } from '@/lib/dataService';
+import { CobradoresClient } from './CobradoresClient';
 
-export default function CobradoresPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function CobradoresPage() {
+  let cobradores: Awaited<ReturnType<typeof listCobradores>> = [];
+  let loadError: string | null = null;
+  try {
+    cobradores = await listCobradores();
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : 'Error al cargar';
+  }
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestión de Cobradores</h1>
-          <p className="text-gray-600">Administra los cobradores registrados en el sistema</p>
+      {loadError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          No se pudo cargar la lista: {loadError}
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Cobradores Registrados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              icon={<Users className="h-8 w-8" />}
-              title="No hay cobradores registrados"
-              description="Los cobradores aparecerán aquí una vez que se registren en el sistema."
-            />
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <CobradoresClient initial={cobradores} />
+      )}
     </AppLayout>
   );
 }

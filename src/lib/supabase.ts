@@ -64,20 +64,35 @@ export function isSupabaseConfigured() {
   return Boolean(getSupabaseConfig());
 }
 
-export async function executeSql(query: string): Promise<any> {
-  const connectionString = getFirstEnv(POSTGRES_URL_KEYS);
-  if (!connectionString) {
+function buildPgConnectionString(raw: string): string {
+  // Node 24+ + pg treat sslmode=require as verify-full, conflicting with
+  // ssl:{rejectUnauthorized:false}. Strip sslmode and let the ssl option drive.
+  try {
+    const url = new URL(raw);
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('supa');
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+export async function executeSql<T extends Record<string, unknown> = Record<string, unknown>>(
+  query: string
+): Promise<T[]> {
+  const raw = getFirstEnv(POSTGRES_URL_KEYS);
+  if (!raw) {
     throw new Error('POSTGRES_URL no configurado');
   }
 
   const client = new Client({
-    connectionString,
+    connectionString: buildPgConnectionString(raw),
     ssl: { rejectUnauthorized: false },
   });
 
   await client.connect();
   try {
-    const result = await client.query(query);
+    const result = await client.query<T>(query);
     return result.rows;
   } finally {
     await client.end();

@@ -19,3 +19,19 @@ export interface User {
 export interface UserWithPassword extends User {
   password_hash: string;
 }
+
+export interface InvoiceRow {
+  id: string;
+  invoice_number: number;
+  cobrador_id: string;
+  cobrador_name: string;
+  cobrador_cc: string | null;
+  cobrador_address: string | null;
+  cobrador_bank: string | null;
+  cobrador_account_type: string | null;
+  cobrador_account: string | null;
+  company_nit: string;
+  concept: string;
+  amount: number | string;
+  generated_at: string;
+}

@@ -1,4 +1,3 @@
-import React from 'react';
 import { numberToWords, formatCOP } from '@/lib/numberToWords';
 import { formatNIT } from '@/lib/dateUtils';
 
@@ -17,57 +16,124 @@ export type Invoice = {
   generated_at?: string;
 };
 
+const accountTypeLabel: Record<string, string> = {
+  ahorros: 'Ahorros',
+  corriente: 'Corriente',
+};
+
 export default function InvoiceDocument({ invoice }: { invoice: Invoice }) {
   const date = invoice.generated_at ? new Date(invoice.generated_at) : new Date();
-  const dateStr = date.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dateStr = date.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const cityDate = `Santa Marta, ${dateStr}`;
+  const numberLabel = String(invoice.invoice_number).padStart(4, '0');
 
   return (
-    <div className="max-w-[800px] mx-auto bg-white shadow-md rounded-md p-6 print:shadow-none print:rounded-none" style={{ fontFamily: 'Inter, sans-serif' }}>
-      <header className="flex items-start justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">CUENTA DE COBRO</h1>
-          <div className="text-sm text-gray-600">CuentaFácil</div>
-        </div>
-        <div className="text-right">
-          <div className="text-sm text-gray-600">No. {invoice.invoice_number}</div>
-          <div className="text-sm text-gray-600">{dateStr}</div>
-        </div>
-      </header>
+    <article className="invoice-document mx-auto max-w-[820px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-overlay)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+      {/* Top accent bar */}
+      <div className="h-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-fuchsia-500 print:hidden" />
 
-      <section className="mb-4">
-        <h2 className="font-semibold">COBRADOR</h2>
-        <div>{invoice.cobrador_name}</div>
-        <div>CC: {invoice.cobrador_cc}</div>
-        <div>{invoice.cobrador_address}</div>
-      </section>
+      <div className="p-10 print:p-0">
+        <header className="mb-8 flex items-start justify-between gap-6 border-b border-slate-200 pb-6">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-indigo-600">
+              CuentaFácil · República de Colombia
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+              CUENTA DE COBRO
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">{cityDate}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-right">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              Número
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
+              #{numberLabel}
+            </p>
+          </div>
+        </header>
 
-      <section className="mb-4">
-        <h2 className="font-semibold">EMPRESA PAGADORA</h2>
-        <div>NIT: {formatNIT(invoice.company_nit)}</div>
-      </section>
+        <Section title="Cobrador">
+          <Row label="Nombre" value={invoice.cobrador_name} />
+          <Row label="C.C." value={invoice.cobrador_cc || '—'} mono />
+          {invoice.cobrador_address && <Row label="Dirección" value={invoice.cobrador_address} />}
+        </Section>
 
-      <section className="mb-4">
-        <h2 className="font-semibold">CONCEPTO</h2>
-        <div className="whitespace-pre-wrap">{invoice.concept}</div>
-      </section>
+        <Section title="Empresa pagadora">
+          <Row label="NIT" value={formatNIT(invoice.company_nit)} mono />
+        </Section>
 
-      <section className="mb-4">
-        <h2 className="font-semibold">VALOR</h2>
-        <div className="text-xl font-bold">{formatCOP(invoice.amount)}</div>
-        <div className="text-gray-700">{numberToWords(invoice.amount)}</div>
-      </section>
+        <Section title="Concepto">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+            {invoice.concept}
+          </p>
+        </Section>
 
-      <section className="mb-6">
-        <h2 className="font-semibold">DATOS BANCARIOS</h2>
-        <div>{invoice.cobrador_bank || '-'} / {invoice.cobrador_account_type || '-'} / {invoice.cobrador_account || '-'}</div>
-      </section>
+        <Section title="Valor a cobrar">
+          <p className="font-mono text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+            {formatCOP(invoice.amount)}
+          </p>
+          <p className="mt-1 text-sm italic text-slate-600">({numberToWords(invoice.amount)})</p>
+        </Section>
 
-      <footer className="mt-8">
-        <div className="border-t pt-6">
-          <div className="h-10"></div>
-          <div>{invoice.cobrador_name} — CC: {invoice.cobrador_cc}</div>
-        </div>
-      </footer>
-    </div>
+        {(invoice.cobrador_bank || invoice.cobrador_account) && (
+          <Section title="Datos bancarios">
+            <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+              {invoice.cobrador_bank && <Row label="Banco" value={invoice.cobrador_bank} />}
+              {invoice.cobrador_account_type && (
+                <Row
+                  label="Tipo de cuenta"
+                  value={
+                    accountTypeLabel[invoice.cobrador_account_type] || invoice.cobrador_account_type
+                  }
+                />
+              )}
+              {invoice.cobrador_account && (
+                <Row label="Número de cuenta" value={invoice.cobrador_account} mono />
+              )}
+            </div>
+          </Section>
+        )}
+
+        <footer className="mt-12 border-t border-slate-200 pt-10">
+          <div className="mx-auto max-w-xs text-center">
+            <div className="mb-2 h-14 border-b border-slate-400" aria-hidden />
+            <p className="text-sm font-medium text-slate-900">{invoice.cobrador_name}</p>
+            <p className="font-mono text-xs text-slate-500 tabular-nums">
+              C.C. {invoice.cobrador_cc || '—'}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Firma del cobrador</p>
+          </div>
+        </footer>
+      </div>
+    </article>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-6">
+      <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {title}
+      </h2>
+      <div className="space-y-1 text-sm text-slate-800">{children}</div>
+    </section>
+  );
+}
+
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <p className="text-sm leading-relaxed">
+      <span className="inline-block w-32 text-slate-500">{label}:</span>
+      <span
+        className={`font-medium text-slate-900 ${mono ? 'font-mono tabular-nums tracking-wide' : ''}`}
+      >
+        {value}
+      </span>
+    </p>
   );
 }

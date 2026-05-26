@@ -79,7 +79,7 @@ const tableDefinitions: Array<{ table: string; sql: string }> = [
 ];
 
 async function listExistingTables(): Promise<TableCount> {
-  const rows = await executeSql(`
+  const rows = await executeSql<{ table_name: string }>(`
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public'
@@ -87,15 +87,15 @@ async function listExistingTables(): Promise<TableCount> {
     ORDER BY table_name;
   `);
 
-  const tableNames = Array.isArray(rows)
-    ? rows.map((row: any) => String(row.table_name)).filter(Boolean)
-    : [];
+  const tableNames = rows.map((row) => String(row.table_name)).filter(Boolean);
 
   const counts: TableCount = {};
   for (const tableName of tableNames) {
     try {
-      const countResult = await executeSql(`SELECT COUNT(*) AS count FROM "${tableName}";`);
-      const countRow = Array.isArray(countResult) ? countResult[0] : null;
+      const countResult = await executeSql<{ count: number | string }>(
+        `SELECT COUNT(*) AS count FROM "${tableName}";`
+      );
+      const countRow = countResult[0];
       counts[tableName] = countRow ? Number(countRow.count ?? 0) : 0;
     } catch {
       counts[tableName] = 0;
@@ -105,13 +105,19 @@ async function listExistingTables(): Promise<TableCount> {
   return counts;
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return 'Error interno';
+}
+
 export async function GET() {
   try {
     requireSupabaseClient();
     const tables = await listExistingTables();
     return NextResponse.json({ connected: true, tables });
-  } catch (error: any) {
-    return NextResponse.json({ connected: false, error: error?.message ?? 'Error interno' });
+  } catch (error: unknown) {
+    return NextResponse.json({ connected: false, error: errorMessage(error) });
   }
 }
 
@@ -127,9 +133,17 @@ export async function POST(request: Request) {
     for (const definition of tableDefinitions) {
       try {
         await executeSql(definition.sql);
-        results.push({ table: definition.table, status: 'success', message: 'Tabla creada o ya existe' });
-      } catch (error: any) {
-        results.push({ table: definition.table, status: 'error', message: String(error?.message ?? error) });
+        results.push({
+          table: definition.table,
+          status: 'success',
+          message: 'Tabla creada o ya existe',
+        });
+      } catch (error: unknown) {
+        results.push({
+          table: definition.table,
+          status: 'error',
+          message: errorMessage(error),
+        });
       }
     }
 
@@ -142,7 +156,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, steps: results });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message ?? 'Error interno' }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: errorMessage(error) }, { status: 500 });
   }
 }

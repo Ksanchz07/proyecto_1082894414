@@ -3,7 +3,7 @@ import { getSessionToken, verifyJwt } from './auth';
 export async function withAuth(request: Request) {
   const token = getSessionToken(request);
   if (!token) {
-    throw new Response(JSON.stringify({ error: 'No authenticated session' }), {
+    return new Response(JSON.stringify({ error: 'No authenticated session' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -7,7 +7,7 @@ export async function withRole(request: Request, allowedRoles: UserRole[]) {
     return session;
   }
   if (!allowedRoles.includes(session.role)) {
-    throw new Response(JSON.stringify({ error: 'Forbidden' }), {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -1,12 +1,24 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import { ToastProvider } from '@/components/ui/Toaster';
 
-const inter = Inter({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: '--font-sans',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+const geistMono = Geist_Mono({
+  variable: '--font-mono',
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: "Mi App Fullstack TS",
-  description: "Sistema fullstack con TypeScript, Next.js y Vercel",
+  title: 'CuentaFácil — Generador de cuentas de cobro',
+  description:
+    'CuentaFácil automatiza la generación de cuentas de cobro para trabajadores independientes en Colombia.',
 };
 
 export default function RootLayout({
@@ -15,9 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={inter.className}>{children}</body>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="font-sans antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }
-
