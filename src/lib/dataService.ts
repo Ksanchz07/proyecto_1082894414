@@ -1,32 +1,19 @@
 import { randomUUID } from 'crypto';
-import { getSupabaseClient, isSupabaseConfigured } from './supabase';
-import {
-  readSeedData,
-  getSeedUserByEmail,
-  getSeedUserById,
-  writeSeedData,
-} from './seedReader';
+import { getSupabaseClient, requireSupabaseClient } from './supabase';
 import { recordAuditEntry } from './blobAudit';
 import type { CompanySummary, InvoiceRow, User, UserWithPassword } from './types';
 
-export async function getSystemMode(): Promise<'seed' | 'live'> {
-  return isSupabaseConfigured() ? 'live' : 'seed';
-}
-
-export function isSeedMode(): boolean {
-  return !isSupabaseConfigured();
-}
+/**
+ * CuentaFácil persiste 100% en Supabase. No hay modo "seed" en disco.
+ * Toda escritura de archivos en runtime fallaría en Vercel (filesystem read-only),
+ * por eso eliminamos esa ruta y exigimos Supabase explícitamente.
+ */
 
 // ============================================================
 // USERS / AUTH
 // ============================================================
 
 export async function getUserByEmail(email: string): Promise<UserWithPassword | null> {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    return getSeedUserByEmail(email);
-  }
-
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
@@ -42,11 +29,6 @@ export async function getUserByEmail(email: string): Promise<UserWithPassword | 
 }
 
 export async function getUserById(id: string): Promise<UserWithPassword | null> {
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    return getSeedUserById(id);
-  }
-
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
@@ -75,20 +57,7 @@ export async function changePassword(userId: string, newPassword: string) {
   const bcrypt = await getBcrypt();
   const passwordHash = bcrypt.hashSync(newPassword, 10);
 
-  const mode = await getSystemMode();
-  if (mode === 'seed') {
-    const seed = readSeedData();
-    const userIndex = seed.users.findIndex((item) => item.id === userId);
-    if (userIndex < 0) throw new Error('Usuario no encontrado');
-    seed.users[userIndex].password_hash = passwordHash;
-    seed.users[userIndex].must_change_password = false;
-    writeSeedData(seed);
-    return;
-  }
-
-  const supabase = getSupabaseClient();
-  if (!supabase) throw new Error('Supabase no configurado');
-
+  const supabase = requireSupabaseClient();
   const { error } = await supabase
     .from('users')
     .update({ password_hash: passwordHash, must_change_password: false })
@@ -131,15 +100,12 @@ function generateTempPassword(): string {
 }
 
 export async function listCobradores(): Promise<User[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    const seed = readSeedData();
-    return seed.users.filter((u) => u.role === 'cobrador') as User[];
-  }
-
+  const supabase = requireSupabaseClient();
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, email, role, is_active, must_change_password, identification_number, address, bank_name, bank_account, account_type, last_login_at, created_at')
+    .select(
+      'id, name, email, role, is_active, must_change_password, identification_number, address, bank_name, bank_account, account_type, last_login_at, created_at'
+    )
     .eq('role', 'cobrador')
     .order('created_at', { ascending: false });
 
@@ -252,9 +218,6 @@ export function formatInvoiceNumber(invoiceNumber: number, year: number): string
 
 export async function getInvoices(userId: string): Promise<InvoiceRow[]> {
   // RN-01: cada cobrador solo ve SUS facturas
-  const mode = await getSystemMode();
-  if (mode === 'seed') return [];
-
   const supabase = getSupabaseClient();
   if (!supabase) return [];
 
@@ -303,9 +266,6 @@ export async function generateInvoice(
   userId: string,
   payload: { companyNit: string; concept: string; amount: number }
 ): Promise<InvoiceRow> {
-  const mode = await getSystemMode();
-  if (mode === 'seed') throw new Error('No disponible en modo seed');
-
   const user = await getUserById(userId);
   if (!user) throw new Error('Usuario no encontrado');
   if (user.role !== 'cobrador') {
@@ -540,7 +500,5 @@ export async function getInvoicesByPeriod(
 // ============================================================
 
 export async function recordAudit(entry: Parameters<typeof recordAuditEntry>[0]) {
-  const mode = await getSystemMode();
-  if (mode === 'seed') return;
   return recordAuditEntry(entry);
 }
