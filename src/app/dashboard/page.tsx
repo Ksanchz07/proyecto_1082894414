@@ -131,18 +131,15 @@ export default async function DashboardPage() {
   const profile = await getUserById(session.sub).catch(() => null);
   const invoices = await getInvoices(session.sub).catch(() => [] as InvoiceRow[]);
 
-  const now = new Date();
-  const thisMonthCount = invoices.filter((inv) => {
-    const d = new Date(inv.generated_at);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
-  const thisMonthAmount = invoices
-    .filter((inv) => {
-      const d = new Date(inv.generated_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
-  const totalAmount = invoices.reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
+  const active = invoices.filter((inv) => inv.status !== 'voided');
+  const paidAmount = active
+    .filter((inv) => inv.status === 'paid')
+    .reduce((s, inv) => s + Number(inv.amount || 0), 0);
+  const pendingAmount = active
+    .filter((inv) => inv.status === 'pending')
+    .reduce((s, inv) => s + Number(inv.amount || 0), 0);
+  const totalAmount = paidAmount + pendingAmount;
+  const pendingCount = active.filter((inv) => inv.status === 'pending').length;
 
   return (
     <AppLayout>
@@ -167,23 +164,37 @@ export default async function DashboardPage() {
           </Link>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard
-            label="Cuentas este mes"
-            value={String(thisMonthCount)}
-            hint={thisMonthCount > 0 ? formatCOP(thisMonthAmount) : 'Aún sin movimiento'}
-            icon={<IconInvoice size={18} />}
-          />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total facturado"
             value={formatCOP(totalAmount)}
-            hint="Histórico acumulado"
+            hint={`${active.length} ${active.length === 1 ? 'cuenta activa' : 'cuentas activas'}`}
             icon={<IconChart size={18} />}
           />
           <StatCard
-            label="Histórico"
-            value={`${invoices.length}`}
-            hint={`${invoices.length === 1 ? 'cuenta' : 'cuentas'} en total`}
+            label="Cobrado"
+            value={formatCOP(paidAmount)}
+            hint={
+              totalAmount > 0
+                ? `${Math.round((paidAmount / totalAmount) * 100)}% del total`
+                : 'Sin movimiento'
+            }
+            icon={<IconChart size={18} />}
+          />
+          <StatCard
+            label="Por cobrar"
+            value={formatCOP(pendingAmount)}
+            hint={pendingCount > 0 ? `${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}` : 'Todo al día'}
+            icon={<IconInvoice size={18} />}
+          />
+          <StatCard
+            label="Histórico total"
+            value={String(invoices.length)}
+            hint={
+              invoices.length !== active.length
+                ? `${invoices.length - active.length} anuladas`
+                : 'Todas activas'
+            }
             icon={<IconInvoice size={18} />}
           />
         </div>

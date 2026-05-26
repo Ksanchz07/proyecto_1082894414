@@ -7,7 +7,7 @@ import {
   writeSeedData,
 } from './seedReader';
 import { recordAuditEntry } from './blobAudit';
-import type { InvoiceRow, User, UserWithPassword } from './types';
+import type { CompanySummary, InvoiceRow, User, UserWithPassword } from './types';
 
 export async function getSystemMode(): Promise<'seed' | 'live'> {
   return isSupabaseConfigured() ? 'live' : 'seed';
@@ -337,6 +337,175 @@ export async function generateInvoice(
 
   if (error || !data) throw error || new Error('No se pudo generar la factura');
   return data as InvoiceRow;
+}
+
+// ============================================================
+// INVOICE STATUS + VOID (N1 + M1)
+// ============================================================
+
+export async function markInvoicePaid(
+  invoiceId: string,
+  userId: string,
+  role: 'admin' | 'cobrador',
+  payload: { paymentMethod?: string } = {}
+): Promise<InvoiceRow> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase no configurado');
+
+  let query = supabase
+    .from('invoices')
+    .update({
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+      payment_method: payload.paymentMethod || null,
+    })
+    .eq('id', invoiceId)
+    .neq('status', 'voided');
+
+  if (role === 'cobrador') query = query.eq('cobrador_id', userId);
+
+  const { data, error } = await query.select('*').single();
+  if (error || !data) throw error || new Error('No se pudo marcar como pagada');
+  return data as InvoiceRow;
+}
+
+export async function markInvoiceUnpaid(
+  invoiceId: string,
+  userId: string,
+  role: 'admin' | 'cobrador'
+): Promise<InvoiceRow> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase no configurado');
+
+  let query = supabase
+    .from('invoices')
+    .update({ status: 'pending', paid_at: null, payment_method: null })
+    .eq('id', invoiceId)
+    .neq('status', 'voided');
+
+  if (role === 'cobrador') query = query.eq('cobrador_id', userId);
+
+  const { data, error } = await query.select('*').single();
+  if (error || !data) throw error || new Error('No se pudo desmarcar el pago');
+  return data as InvoiceRow;
+}
+
+export async function voidInvoice(
+  invoiceId: string,
+  userId: string,
+  role: 'admin' | 'cobrador',
+  reason: string
+): Promise<InvoiceRow> {
+  if (!reason || reason.trim().length < 5) {
+    throw new Error('El motivo de anulación debe tener al menos 5 caracteres');
+  }
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase no configurado');
+
+  let query = supabase
+    .from('invoices')
+    .update({
+      status: 'voided',
+      voided_at: new Date().toISOString(),
+      voided_reason: reason.trim(),
+    })
+    .eq('id', invoiceId)
+    .neq('status', 'voided');
+
+  if (role === 'cobrador') query = query.eq('cobrador_id', userId);
+
+  const { data, error } = await query.select('*').single();
+  if (error || !data) throw error || new Error('No se pudo anular la cuenta');
+  return data as InvoiceRow;
+}
+
+// ============================================================
+// EMPRESAS PAGADORAS (N2)
+// ============================================================
+
+export async function listCompaniesForUser(userId: string): Promise<CompanySummary[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  // Agrupamos en memoria — para volúmenes < 10k facturas es eficiente y evita SQL crudo
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('company_nit, amount, status, generated_at')
+    .eq('cobrador_id', userId)
+    .neq('status', 'voided')
+    .order('generated_at', { ascending: false });
+
+  if (error) throw error;
+
+  const map = new Map<string, CompanySummary>();
+  for (const inv of data || []) {
+    const nit = inv.company_nit;
+    const amount = Number(inv.amount || 0);
+    const existing = map.get(nit);
+    if (!existing) {
+      map.set(nit, {
+        company_nit: nit,
+        invoice_count: 1,
+        total_amount: amount,
+        paid_amount: inv.status === 'paid' ? amount : 0,
+        pending_amount: inv.status === 'pending' ? amount : 0,
+        last_invoice_at: inv.generated_at,
+        first_invoice_at: inv.generated_at,
+      });
+    } else {
+      existing.invoice_count += 1;
+      existing.total_amount += amount;
+      if (inv.status === 'paid') existing.paid_amount += amount;
+      if (inv.status === 'pending') existing.pending_amount += amount;
+      if (inv.generated_at < existing.first_invoice_at) {
+        existing.first_invoice_at = inv.generated_at;
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total_amount - a.total_amount);
+}
+
+export async function getCompanyInvoices(
+  userId: string,
+  companyNit: string
+): Promise<InvoiceRow[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('cobrador_id', userId)
+    .eq('company_nit', companyNit)
+    .order('generated_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as InvoiceRow[];
+}
+
+// ============================================================
+// REPORTES POR PERIODO (R1, R2)
+// ============================================================
+
+export async function getInvoicesByPeriod(
+  userId: string,
+  fromISO: string,
+  toISO: string
+): Promise<InvoiceRow[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('cobrador_id', userId)
+    .gte('generated_at', fromISO)
+    .lt('generated_at', toISO)
+    .order('generated_at', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as InvoiceRow[];
 }
 
 // ============================================================

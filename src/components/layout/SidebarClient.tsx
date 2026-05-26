@@ -16,6 +16,7 @@ import {
   IconPlus,
   IconMenu,
   IconClose,
+  IconChart,
 } from '@/components/ui/Icons';
 
 interface SidebarClientProps {
@@ -34,6 +35,8 @@ type NavItem = {
 const cobradorItems: NavItem[] = [
   { href: '/dashboard', label: 'Inicio', icon: IconHome, match: 'exact' },
   { href: '/invoices/new', label: 'Nueva cuenta', icon: IconPlus },
+  { href: '/companies', label: 'Mis empresas', icon: IconUsers },
+  { href: '/reports', label: 'Reportes', icon: IconChart },
   { href: '/profile', label: 'Mi perfil', icon: IconUser },
 ];
 

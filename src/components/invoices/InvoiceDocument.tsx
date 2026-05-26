@@ -14,6 +14,11 @@ export type Invoice = {
   concept: string;
   amount: number;
   generated_at?: string;
+  status?: 'pending' | 'paid' | 'voided';
+  paid_at?: string | null;
+  payment_method?: string | null;
+  voided_at?: string | null;
+  voided_reason?: string | null;
 };
 
 const accountTypeLabel: Record<string, string> = {
@@ -32,9 +37,21 @@ export default function InvoiceDocument({ invoice }: { invoice: Invoice }) {
   const numberLabel = String(invoice.invoice_number).padStart(4, '0');
 
   return (
-    <article className="invoice-document mx-auto max-w-[820px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-overlay)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+    <article className="invoice-document relative mx-auto max-w-[820px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-overlay)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
       {/* Top accent bar */}
       <div className="h-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-fuchsia-500 print:hidden" />
+
+      {/* Watermark si está anulada */}
+      {invoice.status === 'voided' && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+        >
+          <p className="rotate-[-22deg] font-mono text-[140px] font-black uppercase tracking-tight text-red-500/15 print:text-red-500/30">
+            Anulada
+          </p>
+        </div>
+      )}
 
       <div className="p-10 print:p-0">
         <header className="mb-8 flex items-start justify-between gap-6 border-b border-slate-200 pb-6">

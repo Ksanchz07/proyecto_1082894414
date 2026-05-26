@@ -20,6 +20,8 @@ export interface UserWithPassword extends User {
   password_hash: string;
 }
 
+export type InvoiceStatus = 'pending' | 'paid' | 'voided';
+
 export interface InvoiceRow {
   id: string;
   invoice_number: number;
@@ -34,4 +36,19 @@ export interface InvoiceRow {
   concept: string;
   amount: number | string;
   generated_at: string;
+  status: InvoiceStatus;
+  paid_at: string | null;
+  payment_method: string | null;
+  voided_at: string | null;
+  voided_reason: string | null;
+}
+
+export interface CompanySummary {
+  company_nit: string;
+  invoice_count: number;
+  total_amount: number;
+  paid_amount: number;
+  pending_amount: number;
+  last_invoice_at: string;
+  first_invoice_at: string;
 }

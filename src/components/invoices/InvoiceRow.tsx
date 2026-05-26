@@ -9,6 +9,23 @@ export interface InvoiceRowData {
   generated_at: string;
   company_nit: string;
   amount: number | string;
+  status?: 'pending' | 'paid' | 'voided';
+}
+
+function StatusBadge({ status }: { status: 'pending' | 'paid' | 'voided' }) {
+  const cfg = {
+    pending: { label: 'Pendiente', tone: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500' },
+    paid: { label: 'Pagada', tone: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' },
+    voided: { label: 'Anulada', tone: 'bg-red-50 text-red-700 ring-red-200', dot: 'bg-red-500' },
+  }[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${cfg.tone}`}
+    >
+      <span className={`h-1 w-1 rounded-full ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
 }
 
 function formatDate(iso: string): string {
@@ -26,8 +43,9 @@ export function InvoiceRow({
   invoice: InvoiceRowData;
   showCobrador?: boolean;
 }) {
+  const status = invoice.status || 'pending';
   return (
-    <tr className="group transition hover:bg-indigo-50/40">
+    <tr className={`group transition hover:bg-indigo-50/40 ${status === 'voided' ? 'opacity-60' : ''}`}>
       <td className="px-4 py-3.5 font-mono text-sm tabular-nums text-slate-900">
         #{String(invoice.invoice_number ?? '—').padStart(4, '0')}
       </td>
@@ -37,6 +55,9 @@ export function InvoiceRow({
       <td className="px-4 py-3.5 text-slate-600">{formatDate(invoice.generated_at)}</td>
       <td className="px-4 py-3.5 font-mono text-slate-700 tabular-nums">
         {invoice.company_nit}
+      </td>
+      <td className="px-4 py-3.5">
+        <StatusBadge status={status} />
       </td>
       <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-900 tabular-nums">
         {formatCOP(Number(invoice.amount))}
@@ -70,6 +91,7 @@ export function InvoiceTable({
             {showCobrador && <th className="px-4 py-3">Cobrador</th>}
             <th className="px-4 py-3">Fecha</th>
             <th className="px-4 py-3">NIT empresa</th>
+            <th className="px-4 py-3">Estado</th>
             <th className="px-4 py-3 text-right">Valor</th>
             <th className="px-4 py-3"></th>
           </tr>
