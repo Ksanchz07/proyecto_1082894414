@@ -14,6 +14,7 @@ import {
   IconTrash,
   IconInfo,
   IconClose,
+  IconCopy,
 } from '@/components/ui/Icons';
 
 const paymentMethods = [
@@ -41,6 +42,10 @@ export function InvoiceViewClient() {
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     fetch(`/api/invoices/${id}`)
@@ -48,10 +53,33 @@ export function InvoiceViewClient() {
         const json = await r.json();
         if (!r.ok) throw new Error(json?.error || 'No se pudo cargar la cuenta');
         setInvoice(json.invoice);
+        setNotes(json.invoice?.private_notes || '');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Error inesperado'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function saveNotes() {
+    if (!invoice) return;
+    setSavingNotes(true);
+    try {
+      const r = await fetch(`/api/invoices/${invoice.id}/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notes.trim() || null }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        toast.error('No se pudo guardar la nota', j?.error);
+        return;
+      }
+      setInvoice(j.invoice);
+      setEditingNotes(false);
+      toast.success('Nota guardada');
+    } finally {
+      setSavingNotes(false);
+    }
+  }
 
   async function markPaid() {
     if (!invoice) return;
@@ -158,6 +186,25 @@ export function InvoiceViewClient() {
                     </span>
                   </Button>
                 )}
+                {invoice && (
+                  <Link
+                    href={{
+                      pathname: '/invoices/new',
+                      query: {
+                        nit: invoice.company_nit,
+                        concept: invoice.concept,
+                        amount: invoice.amount,
+                      },
+                    }}
+                  >
+                    <Button variant="outline">
+                      <span className="flex items-center gap-2">
+                        <IconCopy size={16} />
+                        Repetir cuenta
+                      </span>
+                    </Button>
+                  </Link>
+                )}
                 <Button variant="ghost" onClick={() => setShowVoidModal(true)} disabled={submitting}>
                   <span className="flex items-center gap-2 text-red-600">
                     <IconTrash size={16} />
@@ -226,6 +273,71 @@ export function InvoiceViewClient() {
         <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <IconAlert size={18} className="mt-0.5 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Notas privadas (no aparecen en print) */}
+      {invoice && !isVoided && (
+        <div className="mx-auto max-w-[820px] no-print">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                  <IconInfo size={14} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Notas privadas</h3>
+                  <p className="text-xs text-slate-500">Solo tú las ves. No aparecen en la impresión.</p>
+                </div>
+              </div>
+              {!editingNotes && (
+                <button
+                  onClick={() => setEditingNotes(true)}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  {invoice.private_notes ? 'Editar' : 'Agregar'}
+                </button>
+              )}
+            </div>
+
+            {editingNotes ? (
+              <div className="mt-3 space-y-3">
+                <textarea
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
+                  placeholder="Ej: pagada por Bancolombia 28-may · esperando confirmación contador..."
+                  className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500">{notes.length} / 2000</span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingNotes(false);
+                        setNotes(invoice.private_notes || '');
+                      }}
+                      disabled={savingNotes}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button onClick={saveNotes} disabled={savingNotes}>
+                      {savingNotes ? 'Guardando...' : 'Guardar nota'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p
+                className={`mt-3 whitespace-pre-wrap text-sm ${
+                  invoice.private_notes ? 'text-slate-700' : 'text-slate-400 italic'
+                }`}
+              >
+                {invoice.private_notes || 'Sin notas. Útil para registrar pagos parciales, comentarios o seguimiento interno.'}
+              </p>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeSql, requireSupabaseClient } from '@/lib/supabase';
+import { withRole } from '@/lib/withRole';
 
 type TableCount = Record<string, number>;
 
@@ -111,7 +112,10 @@ function errorMessage(err: unknown): string {
   return 'Error interno';
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await withRole(request, ['admin']);
+  if (session instanceof Response) return session;
+
   try {
     requireSupabaseClient();
     const tables = await listExistingTables();
@@ -122,6 +126,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await withRole(request, ['admin']);
+  if (session instanceof Response) return session;
+
   try {
     const body = await request.json();
     if (body?.action !== 'create-all') {

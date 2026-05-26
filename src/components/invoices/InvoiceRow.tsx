@@ -5,11 +5,19 @@ import { IconArrowRight } from '@/components/ui/Icons';
 export interface InvoiceRowData {
   id: string;
   invoice_number?: number | string;
+  invoice_year?: number;
   cobrador_name?: string;
   generated_at: string;
   company_nit: string;
   amount: number | string;
   status?: 'pending' | 'paid' | 'voided';
+}
+
+function formatInvoiceLabel(n: number | string | undefined, year: number | undefined): string {
+  if (n === undefined || n === null) return '—';
+  const num = String(n).padStart(4, '0');
+  if (!year) return `#${num}`;
+  return `CUE-${year}-${num}`;
 }
 
 function StatusBadge({ status }: { status: 'pending' | 'paid' | 'voided' }) {
@@ -46,8 +54,8 @@ export function InvoiceRow({
   const status = invoice.status || 'pending';
   return (
     <tr className={`group transition hover:bg-indigo-50/40 ${status === 'voided' ? 'opacity-60' : ''}`}>
-      <td className="px-4 py-3.5 font-mono text-sm tabular-nums text-slate-900">
-        #{String(invoice.invoice_number ?? '—').padStart(4, '0')}
+      <td className="px-4 py-3.5 font-mono text-xs tabular-nums text-slate-900">
+        {formatInvoiceLabel(invoice.invoice_number, invoice.invoice_year)}
       </td>
       {showCobrador && (
         <td className="px-4 py-3.5 text-slate-700">{invoice.cobrador_name}</td>

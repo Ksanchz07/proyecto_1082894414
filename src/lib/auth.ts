@@ -1,10 +1,29 @@
 import { jwtVerify, SignJWT } from 'jose';
 import type { UserRole } from './types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const JWT_COOKIE_NAME = 'cuentafacil_session';
-const encoder = new TextEncoder();
-const secretKey = encoder.encode(JWT_SECRET);
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === 'dev-secret') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[auth] JWT_SECRET no configurado en producción. Configura una clave aleatoria fuerte en las env vars.'
+      );
+    }
+    // Solo en dev local toleramos un default — pero advertimos en consola.
+    console.warn('[auth] ⚠️  JWT_SECRET usando default de desarrollo. NO USAR EN PRODUCCIÓN.');
+    return new TextEncoder().encode('dev-only-not-for-prod-cuentafacil-fallback');
+  }
+  if (secret.length < 32) {
+    console.warn(
+      '[auth] ⚠️  JWT_SECRET con menos de 32 caracteres — se recomienda mínimo 32 para HS256.'
+    );
+  }
+  return new TextEncoder().encode(secret);
+}
+
+const secretKey = getJwtSecret();
 
 export interface JwtPayload {
   sub: string;

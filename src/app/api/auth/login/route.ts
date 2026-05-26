@@ -2,28 +2,81 @@ import { NextResponse } from 'next/server';
 import { loginSchema } from '@/lib/schemas';
 import { createSessionCookie, signJwt } from '@/lib/auth';
 import { getUserByEmail, recordAudit } from '@/lib/dataService';
+import {
+  checkLockState,
+  registerFailedLogin,
+  registerSuccessfulLogin,
+  LOGIN_LIMITS,
+} from '@/lib/loginGuard';
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const parseResult = loginSchema.safeParse(body);
-  if (!parseResult.success) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'JSON inválido' }, { status: 400 });
+  }
+
+  const parsed = loginSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: 'Email o contraseña inválidos.' },
       { status: 400 }
     );
   }
 
-  const { email, password } = parseResult.data;
+  const { email, password } = parsed.data;
   const user = await getUserByEmail(email);
-  if (!user || !user.is_active) {
+
+  // Respuesta genérica para email inexistente — no revelar usuarios válidos
+  if (!user) {
     return NextResponse.json({ error: 'Credenciales incorrectas.' }, { status: 401 });
   }
 
-  const bcrypt = await import('bcryptjs').then(m => m.default || m);
-  const validPassword = bcrypt.compareSync(password, user.password_hash);
-  if (!validPassword) {
-    return NextResponse.json({ error: 'Credenciales incorrectas.' }, { status: 401 });
+  if (!user.is_active) {
+    return NextResponse.json(
+      { error: 'Tu cuenta está suspendida. Contacta al administrador.' },
+      { status: 403 }
+    );
   }
+
+  // Account lockout check
+  const lock = await checkLockState(user);
+  if (!lock.ok) {
+    return NextResponse.json(
+      { error: lock.message, retryAfterSeconds: lock.retryAfterSeconds },
+      {
+        status: lock.status,
+        headers: lock.retryAfterSeconds
+          ? { 'Retry-After': String(lock.retryAfterSeconds) }
+          : undefined,
+      }
+    );
+  }
+
+  const bcrypt = await import('bcryptjs').then((m) => m.default || m);
+  const validPassword = bcrypt.compareSync(password, user.password_hash);
+
+  if (!validPassword) {
+    const { locked, attemptsLeft } = await registerFailedLogin(user);
+    if (locked) {
+      return NextResponse.json(
+        {
+          error: `Demasiados intentos fallidos. Cuenta bloqueada por ${LOGIN_LIMITS.LOCK_MINUTES} minutos.`,
+        },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json(
+      {
+        error: `Credenciales incorrectas. ${attemptsLeft} intento${attemptsLeft === 1 ? '' : 's'} restante${attemptsLeft === 1 ? '' : 's'} antes del bloqueo.`,
+      },
+      { status: 401 }
+    );
+  }
+
+  // Login válido — reset contador + last_login
+  await registerSuccessfulLogin(user.id);
 
   const token = await signJwt({ sub: user.id, email: user.email, role: user.role });
   const cookie = createSessionCookie(token);
@@ -38,6 +91,7 @@ export async function POST(request: Request) {
   });
 
   response.headers.append('Set-Cookie', cookie);
+
   await recordAudit({
     id: `audit-${Date.now()}`,
     timestamp: new Date().toISOString(),
@@ -47,7 +101,7 @@ export async function POST(request: Request) {
     action: 'login',
     entity: 'system',
     summary: `Inicio de sesión para ${user.email}`,
-  });
+  }).catch(() => {});
 
   return response;
 }

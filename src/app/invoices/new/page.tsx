@@ -1,8 +1,11 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
 import { IconArrowLeft, IconInvoice } from '@/components/ui/Icons';
+
+export const dynamic = 'force-dynamic';
 
 export default function NewInvoicePage() {
   return (
@@ -35,7 +38,9 @@ export default function NewInvoicePage() {
             <CardTitle className="text-base">Datos del documento</CardTitle>
           </CardHeader>
           <CardContent>
-            <InvoiceForm />
+            <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-slate-100" />}>
+              <InvoiceForm />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

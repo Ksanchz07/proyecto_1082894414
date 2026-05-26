@@ -4,6 +4,7 @@ import { formatNIT } from '@/lib/dateUtils';
 export type Invoice = {
   id: string;
   invoice_number: number;
+  invoice_year?: number;
   cobrador_name: string;
   cobrador_cc: string;
   cobrador_address: string;
@@ -19,6 +20,7 @@ export type Invoice = {
   payment_method?: string | null;
   voided_at?: string | null;
   voided_reason?: string | null;
+  private_notes?: string | null;
 };
 
 const accountTypeLabel: Record<string, string> = {
@@ -34,7 +36,8 @@ export default function InvoiceDocument({ invoice }: { invoice: Invoice }) {
     year: 'numeric',
   });
   const cityDate = `Santa Marta, ${dateStr}`;
-  const numberLabel = String(invoice.invoice_number).padStart(4, '0');
+  const year = invoice.invoice_year ?? date.getFullYear();
+  const numberLabel = `CUE-${year}-${String(invoice.invoice_number).padStart(4, '0')}`;
 
   return (
     <article className="invoice-document relative mx-auto max-w-[820px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-overlay)] print:max-w-none print:rounded-none print:border-0 print:shadow-none">
@@ -68,8 +71,8 @@ export default function InvoiceDocument({ invoice }: { invoice: Invoice }) {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Número
             </p>
-            <p className="mt-1 font-mono text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
-              #{numberLabel}
+            <p className="mt-1 font-mono text-lg font-bold tracking-tight text-slate-900 tabular-nums">
+              {numberLabel}
             </p>
           </div>
         </header>

@@ -14,6 +14,8 @@ export interface User {
   account_type?: 'ahorros' | 'corriente' | null;
   last_login_at?: string | null;
   created_at?: string | null;
+  login_attempts?: number;
+  locked_until?: string | null;
 }
 
 export interface UserWithPassword extends User {
@@ -41,6 +43,8 @@ export interface InvoiceRow {
   payment_method: string | null;
   voided_at: string | null;
   voided_reason: string | null;
+  invoice_year: number;
+  private_notes: string | null;
 }
 
 export interface CompanySummary {

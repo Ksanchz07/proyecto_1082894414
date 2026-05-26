@@ -1,10 +1,5 @@
-import { AppLayout } from '@/components/layout/AppLayout';
-import { DbSetupClient } from './DbSetupClient';
+import { redirect } from 'next/navigation';
 
-export default function DbSetupPage() {
-  return (
-    <AppLayout>
-      <DbSetupClient />
-    </AppLayout>
-  );
+export default function LegacyDbSetupRedirect() {
+  redirect('/setup-database');
 }

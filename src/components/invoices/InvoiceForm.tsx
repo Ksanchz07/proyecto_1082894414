@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { generateInvoiceSchema } from '@/lib/schemas';
 import { formatCOP } from '@/lib/numberToWords';
@@ -10,17 +10,34 @@ import { IconAlert, IconPlus } from '@/components/ui/Icons';
 
 type FieldErrors = Partial<{ companyNit: string; concept: string; amount: string; _form: string }>;
 
+interface CompanyHint {
+  company_nit: string;
+  invoice_count: number;
+}
+
 export function InvoiceForm() {
   const router = useRouter();
   const toast = useToast();
-  const [companyNit, setCompanyNit] = useState('');
-  const [concept, setConcept] = useState('');
-  const [amount, setAmount] = useState('');
+  const searchParams = useSearchParams();
+
+  const [companyNit, setCompanyNit] = useState(searchParams?.get('nit') || '');
+  const [concept, setConcept] = useState(searchParams?.get('concept') || '');
+  const [amount, setAmount] = useState(searchParams?.get('amount') || '');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [companies, setCompanies] = useState<CompanyHint[]>([]);
+
+  // N3: cargar empresas ya facturadas para autocompletar NIT
+  useEffect(() => {
+    fetch('/api/companies')
+      .then((r) => (r.ok ? r.json() : { companies: [] }))
+      .then((j) => setCompanies(j.companies || []))
+      .catch(() => setCompanies([]));
+  }, []);
 
   const conceptCount = concept.length;
   const amountPreview = useMemo(() => (amount ? formatCOP(Number(amount)) : ''), [amount]);
+  const isPrefilled = !!(searchParams?.get('nit') || searchParams?.get('concept'));
 
   function validate(): boolean {
     const cleanedNit = companyNit.replace(/\D/g, '');
@@ -78,7 +95,7 @@ export function InvoiceForm() {
         return;
       }
       toast.success(
-        `Cuenta #${String(json.invoice.invoice_number).padStart(4, '0')} generada`,
+        `Cuenta CUE-${json.invoice.invoice_year}-${String(json.invoice.invoice_number).padStart(4, '0')} generada`,
         `Total: ${formatCOP(json.invoice.amount)}`
       );
       router.push(`/invoices/${json.invoice.id}`);
@@ -93,6 +110,16 @@ export function InvoiceForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {isPrefilled && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+          <IconAlert size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Has copiado los datos de una cuenta anterior. Verifica que el valor y el concepto sean
+            correctos antes de generar.
+          </span>
+        </div>
+      )}
+
       {errors._form && (
         <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
           <IconAlert size={16} className="mt-0.5 shrink-0" />
@@ -103,17 +130,30 @@ export function InvoiceForm() {
       <Field
         label="NIT de la empresa"
         required
-        hint="Solo dígitos. 9 o 10 caracteres (sin guión ni dígito de verificación)."
+        hint={
+          companies.length > 0
+            ? `Solo dígitos. Tienes ${companies.length} ${companies.length === 1 ? 'empresa' : 'empresas'} facturadas previamente.`
+            : 'Solo dígitos. 9 o 10 caracteres (sin guión ni dígito de verificación).'
+        }
         error={errors.companyNit}
       >
         <input
           inputMode="numeric"
           required
+          list="company-nits"
           value={companyNit}
           onChange={(e) => setCompanyNit(e.target.value.replace(/\D/g, '').slice(0, 10))}
           className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-base text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 font-mono tracking-wide"
           placeholder="900123456"
         />
+        {/* N3: HTML5 datalist con NITs ya facturados */}
+        <datalist id="company-nits">
+          {companies.map((c) => (
+            <option key={c.company_nit} value={c.company_nit}>
+              {c.invoice_count} {c.invoice_count === 1 ? 'cuenta previa' : 'cuentas previas'}
+            </option>
+          ))}
+        </datalist>
       </Field>
 
       <Field

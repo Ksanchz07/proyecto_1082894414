@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { InvoiceTable } from '@/components/invoices/InvoiceRow';
+import { IncomeChart } from '@/components/dashboard/IncomeChart';
 import {
   IconInvoice,
   IconPlus,
@@ -18,8 +19,48 @@ import {
   getInvoicesForAdmin,
   getUserById,
   listCobradores,
+  listCompaniesForUser,
 } from '@/lib/dataService';
+import { formatNIT } from '@/lib/dateUtils';
 import type { InvoiceRow } from '@/lib/types';
+
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function buildLast12MonthsSeries(invoices: InvoiceRow[]) {
+  const now = new Date();
+  const series: Array<{
+    label: string;
+    year: number;
+    month: number;
+    total: number;
+    paid: number;
+    pending: number;
+  }> = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    series.push({
+      label: MONTH_SHORT[d.getMonth()],
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      total: 0,
+      paid: 0,
+      pending: 0,
+    });
+  }
+  for (const inv of invoices) {
+    if (inv.status === 'voided') continue;
+    const d = new Date(inv.generated_at);
+    const idx = series.findIndex(
+      (s) => s.year === d.getFullYear() && s.month === d.getMonth() + 1
+    );
+    if (idx === -1) continue;
+    const amount = Number(inv.amount || 0);
+    series[idx].total += amount;
+    if (inv.status === 'paid') series[idx].paid += amount;
+    else series[idx].pending += amount;
+  }
+  return series;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -128,8 +169,11 @@ export default async function DashboardPage() {
   }
 
   // ============ COBRADOR ============
-  const profile = await getUserById(session.sub).catch(() => null);
-  const invoices = await getInvoices(session.sub).catch(() => [] as InvoiceRow[]);
+  const [profile, invoices, companies] = await Promise.all([
+    getUserById(session.sub).catch(() => null),
+    getInvoices(session.sub).catch(() => [] as InvoiceRow[]),
+    listCompaniesForUser(session.sub).catch(() => []),
+  ]);
 
   const active = invoices.filter((inv) => inv.status !== 'voided');
   const paidAmount = active
@@ -140,6 +184,35 @@ export default async function DashboardPage() {
     .reduce((s, inv) => s + Number(inv.amount || 0), 0);
   const totalAmount = paidAmount + pendingAmount;
   const pendingCount = active.filter((inv) => inv.status === 'pending').length;
+
+  // G1: gráfico últimos 12 meses
+  const series12 = buildLast12MonthsSeries(invoices);
+
+  // G2: comparativa mes actual vs mes anterior
+  const thisMonthTotal = series12[series12.length - 1]?.total || 0;
+  const prevMonthTotal = series12[series12.length - 2]?.total || 0;
+  const monthDelta = thisMonthTotal - prevMonthTotal;
+  const monthDeltaPct = prevMonthTotal > 0 ? (monthDelta / prevMonthTotal) * 100 : null;
+
+  // Comparativa año actual vs año anterior (mismo periodo: enero hasta hoy)
+  const now = new Date();
+  const ytdTotal = invoices
+    .filter((inv) => inv.status !== 'voided' && new Date(inv.generated_at).getFullYear() === now.getFullYear())
+    .reduce((s, inv) => s + Number(inv.amount || 0), 0);
+  const lastYearSamePeriodTotal = invoices
+    .filter((inv) => {
+      if (inv.status === 'voided') return false;
+      const d = new Date(inv.generated_at);
+      if (d.getFullYear() !== now.getFullYear() - 1) return false;
+      // Mismo periodo: hasta el mismo mes/día del año anterior
+      return d.getMonth() < now.getMonth() || (d.getMonth() === now.getMonth() && d.getDate() <= now.getDate());
+    })
+    .reduce((s, inv) => s + Number(inv.amount || 0), 0);
+  const ytdDelta = ytdTotal - lastYearSamePeriodTotal;
+  const ytdDeltaPct = lastYearSamePeriodTotal > 0 ? (ytdDelta / lastYearSamePeriodTotal) * 100 : null;
+
+  // G3: top 5 empresas (orden ya viene por total desde dataService)
+  const topCompanies = companies.slice(0, 5);
 
   return (
     <AppLayout>
@@ -180,12 +253,14 @@ export default async function DashboardPage() {
                 : 'Sin movimiento'
             }
             icon={<IconChart size={18} />}
+            tone="emerald"
           />
           <StatCard
             label="Por cobrar"
             value={formatCOP(pendingAmount)}
             hint={pendingCount > 0 ? `${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}` : 'Todo al día'}
             icon={<IconInvoice size={18} />}
+            tone={pendingAmount > 0 ? 'amber' : undefined}
           />
           <StatCard
             label="Histórico total"
@@ -198,6 +273,107 @@ export default async function DashboardPage() {
             icon={<IconInvoice size={18} />}
           />
         </div>
+
+        {/* G1 + G2: Gráfico + comparativas */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Ingresos últimos 12 meses</CardTitle>
+              <p className="text-sm text-slate-500">
+                Distribución mensual de cuentas activas (pagadas + pendientes).
+              </p>
+            </CardHeader>
+            <CardContent>
+              <IncomeChart data={series12} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Comparativas</CardTitle>
+              <p className="text-sm text-slate-500">Cómo vas vs periodos anteriores.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ComparisonRow
+                label="Mes actual"
+                current={thisMonthTotal}
+                previous={prevMonthTotal}
+                delta={monthDelta}
+                deltaPct={monthDeltaPct}
+                hint="vs mes anterior"
+              />
+              <ComparisonRow
+                label={`Año ${now.getFullYear()} (YTD)`}
+                current={ytdTotal}
+                previous={lastYearSamePeriodTotal}
+                delta={ytdDelta}
+                deltaPct={ytdDeltaPct}
+                hint={`vs ${now.getFullYear() - 1} mismo periodo`}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* G3: Top 5 empresas */}
+        {topCompanies.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Top 5 empresas pagadoras</CardTitle>
+                <p className="text-sm text-slate-500">
+                  Tus mejores clientes por monto facturado acumulado.
+                </p>
+              </div>
+              <Link
+                href="/companies"
+                className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Ver todas
+                <IconArrowRight size={14} />
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2.5">
+                {topCompanies.map((c, idx) => {
+                  const pct = (c.total_amount / (topCompanies[0]?.total_amount || 1)) * 100;
+                  return (
+                    <li key={c.company_nit}>
+                      <Link
+                        href={`/reports/company/${c.company_nit}`}
+                        className="group block rounded-lg border border-slate-200 bg-white p-3.5 transition hover:border-indigo-200 hover:shadow-sm"
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-50 font-mono text-xs font-bold text-indigo-700">
+                              {idx + 1}
+                            </span>
+                            <p className="font-mono text-sm text-slate-900 tabular-nums">
+                              {formatNIT(c.company_nit)}
+                            </p>
+                          </div>
+                          <p className="font-mono text-sm font-semibold text-slate-900 tabular-nums">
+                            {formatCOP(c.total_amount)}
+                          </p>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="font-mono text-[10px] tabular-nums text-slate-500">
+                            {c.invoice_count} {c.invoice_count === 1 ? 'cuenta' : 'cuentas'}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -239,18 +415,26 @@ function StatCard({
   hint,
   icon,
   href,
+  tone = 'indigo',
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: React.ReactNode;
   href?: string;
+  tone?: 'indigo' | 'emerald' | 'amber';
 }) {
+  const tones: Record<string, { bg: string; ring: string; iconBg: string }> = {
+    indigo: { bg: 'bg-indigo-50', ring: 'ring-indigo-100', iconBg: 'bg-indigo-50 text-indigo-600' },
+    emerald: { bg: 'bg-emerald-50', ring: 'ring-emerald-100', iconBg: 'bg-emerald-50 text-emerald-600' },
+    amber: { bg: 'bg-amber-50', ring: 'ring-amber-100', iconBg: 'bg-amber-50 text-amber-600' },
+  };
+  const t = tones[tone];
   const inner = (
     <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[var(--shadow-card)] transition hover:border-indigo-200 hover:shadow-md">
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-50 opacity-0 blur-3xl transition group-hover:opacity-80"
+        className={`pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full ${t.bg} opacity-0 blur-3xl transition group-hover:opacity-80`}
       />
       <div className="relative flex items-start justify-between">
         <div className="min-w-0">
@@ -262,11 +446,60 @@ function StatCard({
           </p>
           {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
         </div>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 transition group-hover:bg-indigo-100">
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${t.iconBg} ${t.ring} transition`}
+        >
           {icon}
         </div>
       </div>
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
+}
+
+function ComparisonRow({
+  label,
+  current,
+  previous: _previous,
+  delta,
+  deltaPct,
+  hint,
+}: {
+  label: string;
+  current: number;
+  previous: number;
+  delta: number;
+  deltaPct: number | null;
+  hint?: string;
+}) {
+  const positive = delta >= 0;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1.5 font-mono text-xl font-bold tracking-tight text-slate-900 tabular-nums">
+        {formatCOP(current)}
+      </p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        {deltaPct === null ? (
+          <span className="text-xs text-slate-500">Sin dato del periodo anterior</span>
+        ) : (
+          <>
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${
+                positive
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {positive ? '↑' : '↓'} {Math.abs(deltaPct).toFixed(1)}%
+            </span>
+            <span className="text-xs text-slate-500">
+              {positive ? '+' : ''}
+              {formatCOP(delta)} {hint}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -231,17 +231,23 @@ export async function deleteCobrador(id: string): Promise<void> {
 // INVOICES (Fase 4)
 // ============================================================
 
-export async function getNextInvoiceNumber(userId: string): Promise<number> {
+export async function getNextInvoiceNumber(userId: string, year?: number): Promise<number> {
+  const targetYear = year ?? new Date().getFullYear();
   const supabase = getSupabaseClient();
   if (!supabase) return 1;
 
   const { count, error } = await supabase
     .from('invoices')
     .select('id', { count: 'exact', head: true })
-    .eq('cobrador_id', userId);
+    .eq('cobrador_id', userId)
+    .eq('invoice_year', targetYear);
 
   if (error) throw error;
   return (count ?? 0) + 1;
+}
+
+export function formatInvoiceNumber(invoiceNumber: number, year: number): string {
+  return `CUE-${year}-${String(invoiceNumber).padStart(4, '0')}`;
 }
 
 export async function getInvoices(userId: string): Promise<InvoiceRow[]> {
@@ -311,11 +317,13 @@ export async function generateInvoice(
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Supabase no configurado');
 
-  const invoiceNumber = await getNextInvoiceNumber(userId);
+  const year = new Date().getFullYear();
+  const invoiceNumber = await getNextInvoiceNumber(userId, year);
 
   const invoicePayload = {
     id: randomUUID(),
     invoice_number: invoiceNumber,
+    invoice_year: year,
     cobrador_id: user.id,
     cobrador_name: user.name,
     cobrador_cc: user.identification_number || null,
@@ -416,6 +424,25 @@ export async function voidInvoice(
 
   const { data, error } = await query.select('*').single();
   if (error || !data) throw error || new Error('No se pudo anular la cuenta');
+  return data as InvoiceRow;
+}
+
+export async function updateInvoiceNotes(
+  invoiceId: string,
+  userId: string,
+  role: 'admin' | 'cobrador',
+  notes: string | null
+): Promise<InvoiceRow> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase no configurado');
+
+  const trimmed = notes && notes.trim().length > 0 ? notes.trim().slice(0, 2000) : null;
+
+  let query = supabase.from('invoices').update({ private_notes: trimmed }).eq('id', invoiceId);
+  if (role === 'cobrador') query = query.eq('cobrador_id', userId);
+
+  const { data, error } = await query.select('*').single();
+  if (error || !data) throw error || new Error('No se pudo guardar la nota');
   return data as InvoiceRow;
 }
 

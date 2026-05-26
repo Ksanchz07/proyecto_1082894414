@@ -40,8 +40,11 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
-  // Bloquear /admin/* para no-admin
-  if (pathname.startsWith('/admin') && session.role !== 'admin') {
+  // Bloquear /admin/* y /setup-database para no-admin
+  if (
+    (pathname.startsWith('/admin') || pathname.startsWith('/setup-database')) &&
+    session.role !== 'admin'
+  ) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

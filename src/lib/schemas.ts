@@ -5,10 +5,22 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
-});
+const STRONG_PASSWORD = z
+  .string()
+  .min(8, 'Mínimo 8 caracteres')
+  .max(72, 'Máximo 72 caracteres') // bcrypt límite
+  .refine((v) => /[A-Za-z]/.test(v), 'Debe incluir al menos una letra')
+  .refine((v) => /\d/.test(v), 'Debe incluir al menos un número');
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Ingresa tu contraseña actual'),
+    newPassword: STRONG_PASSWORD,
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    message: 'La nueva contraseña debe ser distinta de la actual',
+    path: ['newPassword'],
+  });
 
 export const generateInvoiceSchema = z.object({
   companyNit: z.string().regex(/^\d{9,10}$/, 'El NIT debe tener 9 o 10 dígitos'),
