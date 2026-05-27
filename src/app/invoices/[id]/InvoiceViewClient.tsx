@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import InvoiceDocument, { type Invoice } from '@/components/invoices/InvoiceDocument';
 import { PrintButton } from '@/components/invoices/PrintButton';
+import { AttachmentsPanel } from '@/components/invoices/AttachmentsPanel';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toaster';
 import {
@@ -339,6 +340,11 @@ export function InvoiceViewClient() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Adjuntos (no en print) */}
+      {invoice && id && (
+        <AttachmentsPanel invoiceId={id} disabled={isVoided} />
       )}
 
       {invoice && <InvoiceDocument invoice={invoice} />}
