@@ -141,16 +141,6 @@ export default function SetupDatabasePage() {
               por la aplicación.
             </p>
           </div>
-          <div className="flex items-start">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleResetFactory}
-              disabled={creating || loadingConnection}
-            >
-              Resetear fábrica
-            </Button>
-          </div>
         </header>
 
         <Card>
@@ -210,14 +200,6 @@ export default function SetupDatabasePage() {
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleCreateTables} disabled={creating}>
                 {creating ? 'Creando tablas...' : 'Crear todas las tablas'}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleResetFactory}
-                disabled={creating || loadingConnection}
-              >
-                Resetear fábrica
               </Button>
               <code className="font-mono text-xs text-slate-500">POST /api/setup-database</code>
             </div>

@@ -141,6 +141,7 @@ export async function POST(request: Request) {
       await executeSql(`
         DELETE FROM invoices;
         DELETE FROM users WHERE role <> 'admin';
+        DELETE FROM users WHERE email = 'admin@cuentafacil.com' AND id <> 'seed-admin';
         INSERT INTO users (id, name, email, role, is_active, must_change_password, password_hash)
         VALUES (
           'seed-admin',
