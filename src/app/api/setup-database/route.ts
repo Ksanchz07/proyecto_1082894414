@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeSql, requireSupabaseClient } from '@/lib/supabase';
 import { withRole } from '@/lib/withRole';
+import bcrypt from 'bcryptjs';
 
 type TableCount = Record<string, number>;
 
@@ -131,8 +132,35 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    if (body?.action !== 'create-all') {
+    if (body?.action !== 'create-all' && body?.action !== 'reset-factory') {
       return NextResponse.json({ error: 'Acción inválida' }, { status: 400 });
+    }
+
+    if (body?.action === 'reset-factory') {
+      const adminPasswordHash = bcrypt.hashSync('Admin1234!', 10);
+      await executeSql(`
+        DELETE FROM invoices;
+        DELETE FROM users WHERE role <> 'admin';
+        INSERT INTO users (id, name, email, role, is_active, must_change_password, password_hash)
+        VALUES (
+          'seed-admin',
+          'Administrador',
+          'admin@cuentafacil.com',
+          'admin',
+          true,
+          false,
+          '${adminPasswordHash}'
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          role = EXCLUDED.role,
+          is_active = EXCLUDED.is_active,
+          must_change_password = EXCLUDED.must_change_password,
+          password_hash = EXCLUDED.password_hash;
+      `);
+
+      return NextResponse.json({ success: true, reset: true });
     }
 
     const results: CreateStep[] = [];

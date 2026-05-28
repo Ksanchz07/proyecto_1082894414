@@ -39,6 +39,7 @@ export default function SetupDatabasePage() {
   const [creating, setCreating] = useState(false);
   const [createSteps, setCreateSteps] = useState<TableStatus[]>(initialTableStatus);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   async function handleTestConnection() {
     setLoadingConnection(true);
@@ -65,6 +66,7 @@ export default function SetupDatabasePage() {
   async function handleCreateTables() {
     setCreating(true);
     setErrorMessage(null);
+    setStatusMessage(null);
     setCreateSteps(initialTableStatus.map((step) => ({ ...step })));
 
     try {
@@ -90,6 +92,32 @@ export default function SetupDatabasePage() {
         } as TableStatus;
       });
       setCreateSteps(updatedSteps);
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleResetFactory() {
+    setCreating(true);
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch('/api/setup-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset-factory' }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.reset) {
+        setErrorMessage(data.error || 'Error al resetear el sistema');
+        return;
+      }
+
+      setStatusMessage('Sistema restablecido a configuración de fábrica correctamente.');
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -207,6 +235,35 @@ export default function SetupDatabasePage() {
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Reset de fábrica</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={handleResetFactory} disabled={creating || loadingConnection} variant="destructive">
+                {creating ? 'Restableciendo...' : 'Resetear sistema a fábrica'}
+              </Button>
+              <code className="font-mono text-xs text-slate-500">POST /api/setup-database</code>
+            </div>
+            <p className="text-sm text-slate-600">
+              Esta acción elimina todas las facturas y todos los usuarios no-admin, y conserva sólo el usuario administrador por defecto.
+            </p>
+            {statusMessage && (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <IconCheck size={16} className="mt-0.5 shrink-0" />
+                <span>{statusMessage}</span>
+              </div>
+            )}
+            {errorMessage && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <IconAlert size={16} className="mt-0.5 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
