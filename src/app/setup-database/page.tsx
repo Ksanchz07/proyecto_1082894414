@@ -201,6 +201,14 @@ export default function SetupDatabasePage() {
               <Button onClick={handleCreateTables} disabled={creating}>
                 {creating ? 'Creando tablas...' : 'Crear todas las tablas'}
               </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleResetFactory}
+                disabled={creating || loadingConnection}
+              >
+                Resetear fábrica
+              </Button>
               <code className="font-mono text-xs text-slate-500">POST /api/setup-database</code>
             </div>
 
