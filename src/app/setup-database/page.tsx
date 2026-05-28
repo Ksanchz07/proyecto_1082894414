@@ -128,7 +128,7 @@ export default function SetupDatabasePage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
-        <header className="flex items-start gap-4">
+        <header className="flex items-start justify-between gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <IconDatabase size={24} />
           </div>
@@ -140,6 +140,16 @@ export default function SetupDatabasePage() {
               Página temporal para verificar la conexión a Supabase y crear las tablas requeridas
               por la aplicación.
             </p>
+          </div>
+          <div className="flex items-start">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleResetFactory}
+              disabled={creating || loadingConnection}
+            >
+              Resetear fábrica
+            </Button>
           </div>
         </header>
 
