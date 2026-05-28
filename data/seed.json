@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "seed-admin",
+      "name": "Administrador",
+      "email": "admin@cuentafacil.com",
+      "password": "Admin1234!",
+      "role": "admin",
+      "is_active": true,
+      "must_change_password": false
+    }
+  ]
+}

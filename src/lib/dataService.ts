@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { getSupabaseClient, requireSupabaseClient } from './supabase';
 import { recordAuditEntry } from './blobAudit';
 import type { CompanySummary, InvoiceRow, User, UserWithPassword } from './types';
@@ -15,7 +17,34 @@ import type { CompanySummary, InvoiceRow, User, UserWithPassword } from './types
 
 export async function getUserByEmail(email: string): Promise<UserWithPassword | null> {
   const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  if (!supabase) {
+    // Modo seed: leer data/seed.json si existe
+    try {
+      const seedPath = path.join(process.cwd(), 'data', 'seed.json');
+      const raw = await readFile(seedPath, 'utf-8');
+      const parsed = JSON.parse(raw || '{}');
+      const users = Array.isArray(parsed.users) ? parsed.users : [];
+      const found = users.find((u: any) => String(u.email).toLowerCase() === String(email).toLowerCase());
+      if (!found) return null;
+      const bcrypt = await getBcrypt();
+      let passwordHash = found.password_hash as string | undefined;
+      if (!passwordHash && found.password) {
+        passwordHash = bcrypt.hashSync(String(found.password), 10);
+      }
+      const user: UserWithPassword = {
+        id: found.id ?? `seed-${String(found.email).toLowerCase()}`,
+        name: found.name ?? 'Seed User',
+        email: String(found.email).toLowerCase(),
+        role: (found.role as any) ?? 'admin',
+        is_active: found.is_active ?? true,
+        must_change_password: found.must_change_password ?? false,
+        password_hash: passwordHash ?? '',
+      } as UserWithPassword;
+      return user;
+    } catch {
+      return null;
+    }
+  }
 
   const { data, error } = await supabase
     .from('users')
@@ -30,7 +59,33 @@ export async function getUserByEmail(email: string): Promise<UserWithPassword | 
 
 export async function getUserById(id: string): Promise<UserWithPassword | null> {
   const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  if (!supabase) {
+    try {
+      const seedPath = path.join(process.cwd(), 'data', 'seed.json');
+      const raw = await readFile(seedPath, 'utf-8');
+      const parsed = JSON.parse(raw || '{}');
+      const users = Array.isArray(parsed.users) ? parsed.users : [];
+      const found = users.find((u: any) => String(u.id) === String(id));
+      if (!found) return null;
+      const bcrypt = await getBcrypt();
+      let passwordHash = found.password_hash as string | undefined;
+      if (!passwordHash && found.password) {
+        passwordHash = bcrypt.hashSync(String(found.password), 10);
+      }
+      const user: UserWithPassword = {
+        id: found.id ?? `seed-${String(found.email).toLowerCase()}`,
+        name: found.name ?? 'Seed User',
+        email: String(found.email).toLowerCase(),
+        role: (found.role as any) ?? 'admin',
+        is_active: found.is_active ?? true,
+        must_change_password: found.must_change_password ?? false,
+        password_hash: passwordHash ?? '',
+      } as UserWithPassword;
+      return user;
+    } catch {
+      return null;
+    }
+  }
 
   const { data, error } = await supabase
     .from('users')
