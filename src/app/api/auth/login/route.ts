@@ -28,8 +28,20 @@ export async function POST(request: Request) {
   const { email, password } = parsed.data;
   const user = await getUserByEmail(email);
 
+  // Debug info in non-prod to help diagnose login issues
+  const debug = process.env.NODE_ENV !== 'production';
+  if (debug) {
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[auth/login] debug: attempted login for', email);
+    } catch {}
+  }
+
   // Respuesta genérica para email inexistente — no revelar usuarios válidos
   if (!user) {
+    if (debug) {
+      return NextResponse.json({ error: 'Credenciales incorrectas.', debug: { reason: 'user_not_found' } }, { status: 401 });
+    }
     return NextResponse.json({ error: 'Credenciales incorrectas.' }, { status: 401 });
   }
 
@@ -60,11 +72,29 @@ export async function POST(request: Request) {
   if (!validPassword) {
     const { locked, attemptsLeft } = await registerFailedLogin(user);
     if (locked) {
+      if (debug) {
+        return NextResponse.json(
+          {
+            error: `Demasiados intentos fallidos. Cuenta bloqueada por ${LOGIN_LIMITS.LOCK_MINUTES} minutos.`,
+            debug: { reason: 'locked' },
+          },
+          { status: 429 }
+        );
+      }
       return NextResponse.json(
         {
           error: `Demasiados intentos fallidos. Cuenta bloqueada por ${LOGIN_LIMITS.LOCK_MINUTES} minutos.`,
         },
         { status: 429 }
+      );
+    }
+    if (debug) {
+      return NextResponse.json(
+        {
+          error: `Credenciales incorrectas. ${attemptsLeft} intento${attemptsLeft === 1 ? '' : 's'} restante${attemptsLeft === 1 ? '' : 's'} antes del bloqueo.`,
+          debug: { reason: 'invalid_password' },
+        },
+        { status: 401 }
       );
     }
     return NextResponse.json(
